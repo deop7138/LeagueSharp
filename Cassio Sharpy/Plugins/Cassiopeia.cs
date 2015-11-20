@@ -32,10 +32,10 @@ namespace Cassio_Sharpy.Plugins
             MenuProvider.Champion.Combo.addUseW();
             MenuProvider.Champion.Combo.addUseE();
             MenuProvider.Champion.Combo.addUseR();
-            MenuProvider.Champion.Combo.addItem("UltMinEnemiesHit", new Slider(1,1,5));
-            MenuProvider.Champion.Combo.addItem("UltMinHitFacing", new Slider(1,1,5));
+            //MenuProvider.Champion.Combo.addItem("UltMinHitFacing", new Slider(1,1,5));
             MenuProvider.Champion.Combo.addItem(("R + Flash"), new KeyBind('T', KeyBindType.Press));
-            
+            MenuProvider.Champion.Combo.addItem("UltMinEnemiesHit", new Slider(1, 1, 5));
+
             MenuProvider.Champion.Harass.addUseQ();
             MenuProvider.Champion.Harass.addUseW();
             MenuProvider.Champion.Harass.addUseE();
@@ -193,7 +193,7 @@ namespace Cassio_Sharpy.Plugins
         private void Combo()
         {
              var UltMinEnemiesHit = MenuProvider.Champion.Combo.getSliderValue("UltMinEnemiesHit").Value;
-            var UltMinHitFacing = MenuProvider.Champion.Combo.getSliderValue("UltMinHitFacing").Value;
+            //var UltMinHitFacing = MenuProvider.Champion.Combo.getSliderValue("UltMinHitFacing").Value;
 
             if (MenuProvider.Champion.Combo.UseQ && Q.IsReady())
                 Q.CastOnBestTarget(0f, false, true);
@@ -212,9 +212,9 @@ namespace Cassio_Sharpy.Plugins
             if (MenuProvider.Champion.Combo.UseR && R.IsReady())
             {
                 var rTarget = HeroManager.Enemies.Where(x => x.IsValidTarget(R.Range)).ToList();
-                var rTargetFacing = rTarget.Where(x => x.IsFacing(Player)).ToList();
+                //var rTargetFacing = rTarget.Where(x => x.IsFacing(Player)).ToList();
 
-                if (rTarget.Count() >= UltMinEnemiesHit && rTargetFacing.Count() >= UltMinHitFacing)
+                if (rTarget.Count() >= UltMinEnemiesHit) //&& rTargetFacing.Count() >= UltMinHitFacing)
                     R.CastOnBestTarget(0f, false, true);
             }
 
