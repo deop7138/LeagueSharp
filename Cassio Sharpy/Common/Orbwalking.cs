@@ -957,6 +957,11 @@ namespace Cassio_Sharpy
                         return OrbwalkingMode.LastHit;
                     }
 
+                    if (_config.Item("Flee").GetValue<KeyBind>().Active)
+                    {
+                        return OrbwalkingMode.Flee;
+                    }
+
                     if (_config.Item(CustomModeName) != null && _config.Item(CustomModeName).GetValue<KeyBind>().Active)
                     {
                         return OrbwalkingMode.CustomMode;
