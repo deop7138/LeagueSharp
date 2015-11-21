@@ -34,6 +34,7 @@ namespace Cassio_Sharpy.Plugins
             MenuProvider.Champion.Combo.addUseR();
             //MenuProvider.Champion.Combo.addItem("UltMinHitFacing", new Slider(1,1,5));
             MenuProvider.Champion.Combo.addItem(("R + Flash"), new KeyBind('T', KeyBindType.Press));
+            MenuProvider.Champion.Combo.addItem(("Auto Harass Use Q"), new KeyBind('H', KeyBindType.Toggle));
             MenuProvider.Champion.Combo.addItem("UltMinEnemiesHit", new Slider(1, 1, 5));
 
             MenuProvider.Champion.Harass.addUseQ();
@@ -135,6 +136,7 @@ namespace Cassio_Sharpy.Plugins
 
         private void Game_OnUpdate(EventArgs args)
         {
+            var AutoHarass = MenuProvider.Champion.Combo.getKeyBindValue("Auto Harass Use Q");
             var RF = MenuProvider.Champion.Combo.getKeyBindValue("R + Flash");
 
             if (Player.IsDead)
@@ -182,6 +184,24 @@ namespace Cassio_Sharpy.Plugins
                         }
                     }
                 }
+
+                if(AutoHarass.Active)
+                    if (!(Player.ManaPercent > MenuProvider.Champion.Harass.IfMana))
+                        return;
+
+                    if (MenuProvider.Orbwalker.ActiveMode !=
+                        Orbwalking.OrbwalkingMode.Combo)
+
+                        if (!ObjectManager.Player.IsRecalling())
+                        {
+                            if (Q.IsReady())
+
+                                if (MenuProvider.Champion.Harass.UseQ)
+
+                                    Q.CastOnBestTarget(0f, false, true);
+
+                        }
+
             }
 
 
