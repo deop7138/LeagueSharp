@@ -54,6 +54,7 @@ namespace Cassio_Sharpy
         public enum OrbwalkingMode
         {
             Flee,
+
             /// <summary>
             /// The orbalker will only last hit minions.
             /// </summary>
@@ -84,7 +85,7 @@ namespace Cassio_Sharpy
             /// </summary>
             None
         }
-        private static readonly string[] OHSP = { "parley", "ezrealmysticshot" };
+
         /// <summary>
         /// Spells that reset the attack timer.
         /// </summary>
@@ -95,7 +96,7 @@ namespace Cassio_Sharpy
             "monkeykingdoubleattack", "mordekaisermaceofspades", "nasusq", "nautiluspiercinggaze", "netherblade",
             "gangplankqwrapper", "poppydevastatingblow", "powerfist", "renektonpreexecute", "rengarq", "shyvanadoubleattack",
             "sivirw", "takedown", "talonnoxiandiplomacy", "trundletrollsmash", "vaynetumble", "vie", "volibearq",
-            "xenzhaocombotarget", "yorickspectral", "reksaiq", "itemtitanichydracleave"
+            "xenzhaocombotarget", "yorickspectral", "reksaiq", "itemtitanichydracleave", "masochism"
         };
 
 
@@ -264,6 +265,8 @@ namespace Cassio_Sharpy
             return !name.ToLower().Contains("tower") && !name.ToLower().Contains("turret") && !name.ToLower().Contains("mini") && !name.ToLower().Contains("minion") && name.ToLower().Contains("attack") && !NoAttacks.Contains(name.ToLower()) ||
             Attacks.Contains(name.ToLower()) || AttackResets.Contains(name.ToLower()) || OHSP.Contains(name.ToLower());
         }
+
+        private static readonly string[] OHSP = { "parley", "ezrealmysticshot" };
 
         /// <summary>
         /// Fires the on attack event.
@@ -850,12 +853,13 @@ namespace Cassio_Sharpy
 
                 /*Load the menu*/
                 _config.AddItem(
-                    new MenuItem("Flee,", "Flee").SetValue(new KeyBind('A', KeyBindType.Press)));
+                    new MenuItem("Flee", "Flee").SetShared().SetValue(new KeyBind('A', KeyBindType.Press)));
 
                 _config.AddItem(
                     new MenuItem("LastHit", "Last hit").SetShared().SetValue(new KeyBind('X', KeyBindType.Press)));
 
-                _config.AddItem(new MenuItem("Farm", "Mixed").SetShared().SetValue(new KeyBind('C', KeyBindType.Press)));
+                _config.AddItem(
+                    new MenuItem("Farm", "Mixed").SetShared().SetValue(new KeyBind('C', KeyBindType.Press)));
 
                 _config.AddItem(
                     new MenuItem("Harass.MLH", "Lasthit While Harass").SetValue(true));
@@ -884,6 +888,7 @@ namespace Cassio_Sharpy
             {
                 return Orbwalking.InAutoAttackRange(target);
             }
+
 
             /// <summary>
             /// Gets the farm delay.
@@ -962,7 +967,7 @@ namespace Cassio_Sharpy
                         return OrbwalkingMode.Flee;
                     }
 
-                    if (_config.Item(CustomModeName) != null && _config.Item(CustomModeName).GetValue<KeyBind>().Active)
+                        if (_config.Item(CustomModeName) != null && _config.Item(CustomModeName).GetValue<KeyBind>().Active)
                     {
                         return OrbwalkingMode.CustomMode;
                     }
@@ -989,7 +994,6 @@ namespace Cassio_Sharpy
             {
                 Move = b;
             }
-
             /// <summary>
             /// Forces the orbwalker to attack the set target if valid and in range.
             /// </summary>

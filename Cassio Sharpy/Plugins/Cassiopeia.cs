@@ -12,7 +12,7 @@ namespace Cassio_Sharpy.Plugins
     {
         private Menu Menu;
         private Orbwalking.Orbwalker Orbwalker { get { return MenuProvider.Orbwalker; } }
-        private SpellSlot Flash = ObjectManager.Player.GetSpellSlot("summonerFlash");
+        public SpellSlot Flash = ObjectManager.Player.GetSpellSlot("summonerFlash");
         private Obj_AI_Hero Player { get { return ObjectManager.Player; } }
         private Spell Q, W, E, R;
 
@@ -136,6 +136,7 @@ namespace Cassio_Sharpy.Plugins
         private void Game_OnUpdate(EventArgs args)
         {
             var RF = MenuProvider.Champion.Combo.getKeyBindValue("R + Flash");
+
             if (Player.IsDead)
                 return;
             
@@ -167,10 +168,31 @@ namespace Cassio_Sharpy.Plugins
                     case Orbwalking.OrbwalkingMode.None:
                         break;
                 }
+                if (RF.Active)
+                {
+                    ObjectManager.Player.IssueOrder(GameObjectOrder.MoveTo, Game.CursorPos);
+                    var target = TargetSelector.GetSelectedTarget();
+                    if (target != null && target.IsValidTarget() && !target.IsZombie)
+                    {
+                        if (Flash != SpellSlot.Unknown && Flash.IsReady()
+                            && R.IsReady() && (Player.Distance(target.Position) <= 1150))
+                        {
+                            R.Cast();
+                            Utility.DelayAction.Add(5, () => Player.Spellbook.CastSpell(Flash, target.Position));
+                        }
+                    }
+                }
             }
-            if (RF.Active)
+
+
+        }
+
+        private void UltF()
             {
-                ObjectManager.Player.IssueOrder(GameObjectOrder.MoveTo, Game.CursorPos);
+
+                
+                //ObjectManager.Player.IssueOrder(GameObjectOrder.MoveTo,Game.CursorPos);
+
                 var target = TargetSelector.GetSelectedTarget();
                 if (target != null && target.IsValidTarget() && !target.IsZombie)
                 {
@@ -180,10 +202,8 @@ namespace Cassio_Sharpy.Plugins
                         R.Cast();
                         Utility.DelayAction.Add(5, () => Player.Spellbook.CastSpell(Flash, target.Position));
                         }
-                }
+}
             }
-        }
-
         private bool IsPoisoned(Obj_AI_Base unit)
         {
             return
