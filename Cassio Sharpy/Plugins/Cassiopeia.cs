@@ -185,7 +185,8 @@ namespace Cassio_Sharpy.Plugins
                     }
                 }
 
-                if(AutoHarass.Active)
+                if (AutoHarass.Active)
+                {
                     if (!(Player.ManaPercent > MenuProvider.Champion.Harass.IfMana))
                         return;
 
@@ -201,6 +202,7 @@ namespace Cassio_Sharpy.Plugins
                                     Q.CastOnBestTarget(0f, false, true);
 
                         }
+                }
 
             }
 
