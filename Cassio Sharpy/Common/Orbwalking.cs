@@ -424,6 +424,8 @@ namespace Cassio_Sharpy
                 {
                     return true;
                 }
+
+                return false;
             }
 
             return Utils.GameTimeTickCount + Game.Ping / 2 + 25 >= LastAATick + Player.AttackDelay * 1000 && Attack;
@@ -858,8 +860,7 @@ namespace Cassio_Sharpy
                 _config.AddItem(
                     new MenuItem("LastHit", "Last hit").SetShared().SetValue(new KeyBind('X', KeyBindType.Press)));
 
-                _config.AddItem(
-                    new MenuItem("Farm", "Mixed").SetShared().SetValue(new KeyBind('C', KeyBindType.Press)));
+                _config.AddItem(new MenuItem("Farm", "Mixed").SetShared().SetValue(new KeyBind('C', KeyBindType.Press)));
 
                 _config.AddItem(
                     new MenuItem("Harass.MLH", "Lasthit While Harass").SetValue(true));
@@ -888,7 +889,6 @@ namespace Cassio_Sharpy
             {
                 return Orbwalking.InAutoAttackRange(target);
             }
-
 
             /// <summary>
             /// Gets the farm delay.
@@ -994,6 +994,7 @@ namespace Cassio_Sharpy
             {
                 Move = b;
             }
+
             /// <summary>
             /// Forces the orbwalker to attack the set target if valid and in range.
             /// </summary>
