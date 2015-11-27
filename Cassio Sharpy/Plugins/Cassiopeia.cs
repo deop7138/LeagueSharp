@@ -198,34 +198,13 @@ namespace Cassio_Sharpy.Plugins
                             if (Q.IsReady())
 
                                 if (MenuProvider.Champion.Harass.UseQ)
-
+                                
                                     Q.CastOnBestTarget(0f, false, true);
-
                         }
                 }
-
             }
-
-
         }
 
-        private void UltF()
-            {
-
-                
-                //ObjectManager.Player.IssueOrder(GameObjectOrder.MoveTo,Game.CursorPos);
-
-                var target = TargetSelector.GetSelectedTarget();
-                if (target != null && target.IsValidTarget() && !target.IsZombie)
-                {
-                    if (Flash != SpellSlot.Unknown && Flash.IsReady()
-                        && R.IsReady() && (Player.Distance(target.Position) <= 1150))
-                        {
-                        R.Cast();
-                        Utility.DelayAction.Add(5, () => Player.Spellbook.CastSpell(Flash, target.Position));
-                        }
-}
-            }
         private bool IsPoisoned(Obj_AI_Base unit)
         {
             return

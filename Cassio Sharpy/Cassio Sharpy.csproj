@@ -72,7 +72,6 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="AutoQuit.cs" />
-    <Compile Include="Common\Damage.cs" />
     <Compile Include="Func.cs" />
     <Compile Include="ExtraExtensions.cs" />
     <Compile Include="DamageIndicatorForJungle.cs" />
