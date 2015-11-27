@@ -244,6 +244,14 @@ namespace Annie_Sharpy
         /// </summary>
         public static event OnNonKillableMinionH OnNonKillableMinion;
 
+        public static bool IsOnHit(this string name)
+        {
+            return !name.ToLower().Contains("tower") && !name.ToLower().Contains("turret") && !name.ToLower().Contains("mini") && !name.ToLower().Contains("minion") && name.ToLower().Contains("attack") && !NoAttacks.Contains(name.ToLower()) ||
+            Attacks.Contains(name.ToLower()) || AttackResets.Contains(name.ToLower()) || OHSP.Contains(name.ToLower());
+        }
+
+        private static readonly string[] OHSP = { "parley", "ezrealmysticshot" };
+
         /// <summary>
         /// Fires the before attack event.
         /// </summary>
@@ -259,14 +267,6 @@ namespace Annie_Sharpy
                 DisableNextAttack = false;
             }
         }
-
-        public static bool IsOnHit(this string name)
-        {
-            return !name.ToLower().Contains("tower") && !name.ToLower().Contains("turret") && !name.ToLower().Contains("mini") && !name.ToLower().Contains("minion") && name.ToLower().Contains("attack") && !NoAttacks.Contains(name.ToLower()) ||
-            Attacks.Contains(name.ToLower()) || AttackResets.Contains(name.ToLower()) || OHSP.Contains(name.ToLower());
-        }
-
-        private static readonly string[] OHSP = { "parley", "ezrealmysticshot" };
 
         /// <summary>
         /// Fires the on attack event.
@@ -967,7 +967,7 @@ namespace Annie_Sharpy
                         return OrbwalkingMode.Flee;
                     }
 
-                        if (_config.Item(CustomModeName) != null && _config.Item(CustomModeName).GetValue<KeyBind>().Active)
+                    if (_config.Item(CustomModeName) != null && _config.Item(CustomModeName).GetValue<KeyBind>().Active)
                     {
                         return OrbwalkingMode.CustomMode;
                     }
@@ -1094,7 +1094,7 @@ namespace Annie_Sharpy
                 }
 
                 //Forced target
-                if (_forcedTarget.IsValidTarget() && InAutoAttackRange(_forcedTarget))
+                if (ActiveMode == OrbwalkingMode.Combo && _forcedTarget.IsValidTarget() && InAutoAttackRange(_forcedTarget))
                 {
                     return _forcedTarget;
                 }

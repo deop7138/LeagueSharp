@@ -24,6 +24,7 @@ namespace Annie_Sharpy.Plugins
         public Obj_AI_Hero Player = ObjectManager.Player;
         public GameObject Tibbers;
         public SpellSlot Flash = ObjectManager.Player.GetSpellSlot("summonerFlash");
+        public float FlashRange = 450f;
         public Spell Q, W, E, R;
 
         public bool HaveTibbers
@@ -41,7 +42,7 @@ namespace Annie_Sharpy.Plugins
             Q = new Spell(SpellSlot.Q, 625f, TargetSelector.DamageType.Magical);
             W = new Spell(SpellSlot.W, 620f, TargetSelector.DamageType.Magical) { MinHitChance = HitChance.High };
             E = new Spell(SpellSlot.E);
-            R = new Spell(SpellSlot.R, 625F, TargetSelector.DamageType.Magical) { MinHitChance = HitChance.High };
+            R = new Spell(SpellSlot.R, 700f, TargetSelector.DamageType.Magical) { MinHitChance = HitChance.High };
 
             Q.SetTargetted(.25f, float.MaxValue);
             W.SetSkillshot(.25f, (float)(90f + Math.PI / 180), float.MaxValue, false, SkillshotType.SkillshotCone);
@@ -52,6 +53,8 @@ namespace Annie_Sharpy.Plugins
             MenuProvider.Champion.Combo.addUseR();
             MenuProvider.Champion.Combo.addItem("R Min Enimies Hit", new Slider(1, 1, 5));
             MenuProvider.Champion.Combo.addItem("R Only Passive", true);
+            MenuProvider.Champion.Combo.addItem("Flash + R", new KeyBind('T', KeyBindType.Press));
+            MenuProvider.Champion.Combo.addItem("Flash + R Enimies Count", new Slider(2, 1, 5));
 
             MenuProvider.Champion.Harass.addUseQ();
             MenuProvider.Champion.Harass.addUseW();
@@ -99,17 +102,17 @@ namespace Annie_Sharpy.Plugins
 
             if (interrupter && args.DangerLevel >= Interrupter2.DangerLevel.High && W.IsReady() && sender.IsValidTarget(W.Range) && Player.HasBuff("pyromania_particle"))
             {
-                W.CastOnBestTarget(0f, false, false);
+                W.CastOnBestTarget(0f, false, true);
             }
 
             else if (interrupter && args.DangerLevel >= Interrupter2.DangerLevel.High && Q.IsReady() && sender.IsValidTarget(Q.Range) && Player.HasBuff("pyromania_particle"))
             {
-                Q.CastOnBestTarget(0f, false, false);
+                Q.CastOnBestTarget(0f, false, true);
             }
 
             else if (interrupter && args.DangerLevel >= Interrupter2.DangerLevel.High && R.IsReady() && sender.IsValidTarget(R.Range) && HaveTibbers && Player.HasBuff("pyromania_particle"))
             {
-                R.CastOnBestTarget(0f, false, false);
+                R.CastOnBestTarget(0f, false, true);
             }
         }
 
@@ -199,6 +202,8 @@ namespace Annie_Sharpy.Plugins
         {
             if (Orbwalking.CanMove(20))
             {
+                var CFR = MenuProvider.Champion.Combo.getKeyBindValue("Flash + R").Active;
+                var CFRU = MenuProvider.Champion.Combo.getSliderValue("Flash + R Enimies Count").Value;
 
                 switch (Orbwalker.ActiveMode)
                 {
@@ -220,6 +225,34 @@ namespace Annie_Sharpy.Plugins
                         break;
                     case Orbwalking.OrbwalkingMode.None:
                         break;
+                }
+
+                if (CFR)
+                {
+                    Player.IssueOrder(GameObjectOrder.MoveTo, Game.CursorPos);
+
+                    var cfrTarget = TargetSelector.GetTarget(R.Range + FlashRange, TargetSelector.DamageType.Magical);
+                    var cfrPos = cfrTarget.Position.Extend(Prediction.GetPrediction(cfrTarget, 1).UnitPosition, FlashRange);
+                    var cfrCount = HeroManager.Enemies.Where(x => x.IsValidTarget(R.Range + FlashRange)).ToList();
+
+                    if (cfrTarget == null)
+                    {
+                        return;
+                    }
+
+                    if (HaveTibbers)
+                    {
+                        Combo();
+                    }
+
+                    if (Player.HasBuff("pyromania_particle") && !HaveTibbers && R.IsReady() && !cfrTarget.IsZombie)
+                    {
+                        if (cfrCount.Count >= CFRU)
+                        {
+                            Player.Spellbook.CastSpell(Flash, cfrPos);
+                            R.Cast(R.GetPrediction(cfrTarget).CastPosition);
+                        }
+                    }
                 }
 
                 if (HaveTibbers)
@@ -270,7 +303,7 @@ namespace Annie_Sharpy.Plugins
 
             if (LHQ && Q.IsReady())
             {
-                var qTarget = Minions.FirstOrDefault(x => Func.isKillable(x, Q, 0) && HealthPrediction.GetHealthPrediction(x, (int)(Player.Distance(x, false) / Q.Speed), (int)(Q.Delay * 800 + Game.Ping / 2)) > 0);
+                var qTarget = Minions.FirstOrDefault(x => Func.isKillable(x, Q, 0) && HealthPrediction.GetHealthPrediction(x, (int)(Player.Distance(x, false) / Q.Speed), (int)(Q.Delay * 1000 + Game.Ping / 2)) > 0);
 
                 if (qTarget != null)
                 {
