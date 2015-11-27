@@ -51,10 +51,10 @@ namespace Annie_Sharpy.Plugins
             MenuProvider.Champion.Combo.addUseQ();
             MenuProvider.Champion.Combo.addUseW();
             MenuProvider.Champion.Combo.addUseR();
-            MenuProvider.Champion.Combo.addItem("R Min Enimies Hit", new Slider(1, 1, 5));
+            MenuProvider.Champion.Combo.addItem("R Min Enemies Hit", new Slider(1, 1, 5));
             MenuProvider.Champion.Combo.addItem("R Only Passive", true);
             MenuProvider.Champion.Combo.addItem("Flash + R", new KeyBind('T', KeyBindType.Press));
-            MenuProvider.Champion.Combo.addItem("Flash + R Enimies Count", new Slider(2, 1, 5));
+            MenuProvider.Champion.Combo.addItem("Flash + R Enemies Count", new Slider(2, 1, 5));
 
             MenuProvider.Champion.Harass.addUseQ();
             MenuProvider.Champion.Harass.addUseW();
@@ -203,7 +203,7 @@ namespace Annie_Sharpy.Plugins
             if (Orbwalking.CanMove(20))
             {
                 var CFR = MenuProvider.Champion.Combo.getKeyBindValue("Flash + R").Active;
-                var CFRU = MenuProvider.Champion.Combo.getSliderValue("Flash + R Enimies Count").Value;
+                var CFRU = MenuProvider.Champion.Combo.getSliderValue("Flash + R Enemies Count").Value;
 
                 switch (Orbwalker.ActiveMode)
                 {
@@ -317,7 +317,7 @@ namespace Annie_Sharpy.Plugins
             var CQ = MenuProvider.Champion.Combo.UseQ;
             var CW = MenuProvider.Champion.Combo.UseW;
             var CR = MenuProvider.Champion.Combo.UseR;
-            var CU = MenuProvider.Champion.Combo.getSliderValue("R Min Enimies Hit").Value;
+            var CU = MenuProvider.Champion.Combo.getSliderValue("R Min Enemies Hit").Value;
             var CO = MenuProvider.Champion.Combo.getBoolValue("R Only Passive");
 
             if (CO && CR && R.IsReady() && !HaveTibbers && Player.HasBuff("pyromania_particle"))
