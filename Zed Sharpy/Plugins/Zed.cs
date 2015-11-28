@@ -9,6 +9,7 @@ using LeagueSharp.Common;
 
 using Color = System.Drawing.Color;
 using SharpDX;
+using ItemData = LeagueSharp.Common.Data.ItemData;
 
 namespace Zed_Sharpy.Plugins
 {
@@ -106,8 +107,35 @@ namespace Zed_Sharpy.Plugins
 
         private void LineCombo()
         {
+            var youmuu = ItemData.Youmuus_Ghostblade.GetItem();
+            var tiamat = ItemData.Tiamat_Melee_Only.GetItem();
+            var hydra = ItemData.Ravenous_Hydra_Melee_Only.GetItem();
+            var botrk = ItemData.Blade_of_the_Ruined_King.GetItem();
+            var bilge = ItemData.Bilgewater_Cutlass.GetItem();
+            var lchTarget = HeroManager.Enemies.Where(x => x.IsValidTarget(hydra.Range)).FirstOrDefault();
+            var lctTarget = HeroManager.Enemies.Where(x => x.IsValidTarget(tiamat.Range)).FirstOrDefault();
+            var lcyTarget = HeroManager.Enemies.Where(x => x.IsValidTarget(1500)).ToList();
+            var lcbTarget = HeroManager.Enemies.Where(x => x.IsValidTarget(botrk.Range)).FirstOrDefault();
+            var lcBTarget = HeroManager.Enemies.Where(x => x.IsValidTarget(bilge.Range)).FirstOrDefault();
             var lcTarget = HeroManager.Enemies.Where(x => x.IsValidTarget(W.Range)).FirstOrDefault();
             var wPos = lcTarget.Position.Extend(Player.ServerPosition, -500);
+
+            if (lcyTarget != null && youmuu.IsReady())
+            {
+                youmuu.Cast();
+            }
+
+            if (lcbTarget != null && botrk.IsReady() && rlocation == CastR.Second || lcBTarget != null && bilge.IsReady() && rlocation == CastR.Second)
+            {
+                botrk.Cast(lcbTarget);
+                bilge.Cast(lcBTarget);
+            }
+
+            if (lctTarget != null && tiamat.IsReady() && rlocation == CastR.Second || lchTarget != null && hydra.IsReady() && rlocation == CastR.Second)
+            {
+                tiamat.Cast(lctTarget);
+                hydra.Cast(lchTarget);
+            }
 
             if (E.IsReady() && rlocation == CastR.Second)
             {
