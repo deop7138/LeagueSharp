@@ -6,20 +6,17 @@ using System.Threading.Tasks;
 
 using LeagueSharp;
 using LeagueSharp.Common;
-
+using ItemData = LeagueSharp.Common.Data.ItemData;
 using Color = System.Drawing.Color;
 using SharpDX;
-using ItemData = LeagueSharp.Common.Data.ItemData;
 
 namespace Zed_Sharpy.Plugins
 {
     public class Zed
     {
-        public Menu Menu;
-        public Obj_AI_Hero Player = ObjectManager.Player;
-        public Spell Q, W, E, R;
-        public Obj_AI_Minion Shadow;
-        public Orbwalking.Orbwalker Orbwalker
+        private Obj_AI_Hero Player = ObjectManager.Player;
+        private Spell Q, W, E, R;
+        private Orbwalking.Orbwalker Orbwalker
         {
             get
             {
@@ -28,23 +25,68 @@ namespace Zed_Sharpy.Plugins
             }
         }
 
+        private enum wCheck
+        {
+            First,
+            Second,
+            Cooltime
+        }
+
+        private enum rCheck
+        {
+            First,
+            Second,
+            Cooltime
+        }
+
+        private wCheck wShadow
+        {
+            get
+            {
+                if (!W.isReadyPerfectly())
+                {
+                    return
+                        wCheck.Cooltime;
+                }
+                return
+                    (Player.Spellbook.GetSpell(SpellSlot.W).Name == "ZedW" ? wCheck.First : wCheck.Second);
+            }
+        }
+
+        private rCheck rShadow
+        {
+            get
+            {
+                if (!R.isReadyPerfectly())
+                {
+                    return
+                        rCheck.Cooltime;
+                }
+                return
+                    (Player.Spellbook.GetSpell(SpellSlot.R).Name == "ZedR" ? rCheck.First : rCheck.Second);
+            }
+        }
         public Zed()
         {
-            Console.WriteLine("Zed Sharpy Loaded");
+            Game.PrintChat("<font Color = \"#00D8FF\">Zed Sharpy Loaded");
 
             Q = new Spell(SpellSlot.Q, 900f, TargetSelector.DamageType.Physical) { MinHitChance = HitChance.High };
             W = new Spell(SpellSlot.W, 700f) { MinHitChance = HitChance.High };
             E = new Spell(SpellSlot.E, 270f, TargetSelector.DamageType.Physical) { MinHitChance = HitChance.High };
-            R = new Spell(SpellSlot.R, 650f);
+            R = new Spell(SpellSlot.R, 650f,TargetSelector.DamageType.Physical);
 
-            Q.SetSkillshot(.25f, 50f, float.MaxValue, false, SkillshotType.SkillshotLine);
-            W.SetSkillshot(0f, 270f, float.MaxValue, false, SkillshotType.SkillshotCircle);
+            Q.SetSkillshot(.5f, 150f, float.MaxValue, false, SkillshotType.SkillshotLine);
+            W.SetSkillshot(0f, 0f, float.MaxValue, false, SkillshotType.SkillshotCircle);
+            E.SetSkillshot(0f, 0f, float.MaxValue, false, SkillshotType.SkillshotCircle);
 
             MenuProvider.Champion.Combo.addUseQ();
             MenuProvider.Champion.Combo.addItem("W Use Only Line Combo");
             MenuProvider.Champion.Combo.addItem("Combo Use W is Manual :)");
             MenuProvider.Champion.Combo.addUseE();
-            MenuProvider.Champion.Combo.addItem("Use R is Manual :)");
+            MenuProvider.Champion.Combo.addUseR();
+            MenuProvider.Champion.Combo.addItem("Use R only Selected", true);
+
+            MenuProvider.Champion.Combo.addItem("Use Item In Line Combo", true);
 
             MenuProvider.Champion.Harass.addUseQ();
             MenuProvider.Champion.Harass.addUseW();
@@ -60,245 +102,535 @@ namespace Zed_Sharpy.Plugins
             MenuProvider.Champion.Jungleclear.addUseQ();
             MenuProvider.Champion.Jungleclear.addUseE();
 
-            MenuProvider.Champion.Drawings.addDrawQrange(Color.Green,true);
+            MenuProvider.Champion.Drawings.addDrawQrange(Color.Green, true);
             MenuProvider.Champion.Drawings.addDrawWrange(Color.Green, true);
             MenuProvider.Champion.Drawings.addDrawErange(Color.Green, true);
             MenuProvider.Champion.Drawings.addDrawRrange(Color.Green, true);
-            MenuProvider.Champion.Drawings.addDamageIndicator(getcombodamage);            
+            MenuProvider.Champion.Drawings.addDamageIndicator(getcombodamage);
 
+            Drawing.OnDraw += Drawing_OnDraw;
+            Spellbook.OnCastSpell += Spellbook_OnCastSpell;
             Game.OnUpdate += Game_OnUpdate;
             Orbwalking.BeforeAttack += Orbwalking_BeforeAttack;
-            Spellbook.OnCastSpell += Spellbook_OnCastSpell;
-            Drawing.OnDraw += Drawing_OnDraw;
+        }
 
+        private void Orbwalking_BeforeAttack(Orbwalking.BeforeAttackEventArgs args)
+        {
+            if (args.Unit.IsMe)
+            {
+                if (Orbwalker.ActiveMode == Orbwalking.OrbwalkingMode.LastHit)
+                {
+                    var LE = MenuProvider.Champion.Lasthit.UseE;
+                    if (LE)
+                    {
+                        if (Player.Mana >= E.ManaCost)
+                        {
+                            if (E.isReadyPerfectly())
+                            {
+                                args.Process = false;
+                            }
+                        }
+                    }
+                }
+            }
         }
 
         private void Game_OnUpdate(EventArgs args)
         {
             if (Orbwalking.CanMove(20))
             {
-
                 switch (Orbwalker.ActiveMode)
                 {
-                    case Orbwalking.OrbwalkingMode.Flee:
-                        Flee();
-                        break;
-                    case Orbwalking.OrbwalkingMode.LastHit:
-                        LastHit();
-                        break;
-                    case Orbwalking.OrbwalkingMode.Mixed:
-                        Harass();
-                        break;
-                    case Orbwalking.OrbwalkingMode.LaneClear:
-                        LaneClear();
-                        JungleClear();
-                        break;
-                    case Orbwalking.OrbwalkingMode.Combo:
-                        Combo();
-                        break;
                     case Orbwalking.OrbwalkingMode.LineCombo:
-                        LineCombo();
+                        {
+                            var CR = MenuProvider.Champion.Combo.UseR;
+                            if (CR)
+                            {
+                                if (R.isReadyPerfectly() && rShadow == rCheck.First)
+                                {
+                                    var CO = MenuProvider.Champion.Combo.getBoolValue("Use R only Selected");
+                                    if (!CO)
+                                    {
+                                        var target = TargetSelector.GetTarget(R.Range, R.DamageType);
+                                        if (target != null && !target.IsZombie)
+                                        {
+                                            R.Cast(target);
+                                        }
+                                    }
+                                    else
+                                    {
+                                        var target = TargetSelector.GetSelectedTarget();
+                                        if (target != null && !target.IsZombie)
+                                        {
+                                            R.Cast(target);
+                                        }
+                                    }
+                                }                                
+                            }
+
+                            if (E.isReadyPerfectly() && wShadow == wCheck.First && rShadow == rCheck.Second)
+                            {
+                                var target = TargetSelector.GetTarget(E.Range, E.DamageType);
+                                if (target != null)
+                                {
+                                    E.Cast(target);
+                                }
+                            }
+
+                            if (W.isReadyPerfectly() && wShadow == wCheck.First && rShadow == rCheck.Second)
+                            {
+                                var rtarget = TargetSelector.GetTarget(W.Range, R.DamageType);
+                                var wtarget = rtarget.Position.Extend(Player.ServerPosition, -500);
+                                if (rtarget != null)
+                                {
+                                    W.Cast(wtarget);
+                                }
+                            }
+
+                            if (Q.isReadyPerfectly() && wShadow == wCheck.Second && rShadow == rCheck.Second)
+                            {
+                                var target = TargetSelector.GetTarget(Q.Range, Q.DamageType);
+                                if (target != null)
+                                {
+                                    Q.Cast(target);
+                                }
+                            }
+
+                            var useItem = MenuProvider.Champion.Combo.getBoolValue("Use Item In Line Combo");
+                            if (useItem)
+                            {
+                                var ytarget = TargetSelector.GetTarget(Q.Range + 300, Q.DamageType);
+                                var YOUMUU = ItemData.Youmuus_Ghostblade.GetItem();
+                                if (ytarget != null)
+                                {
+                                    YOUMUU.Cast();
+                                }
+
+                                var BILGE = ItemData.Bilgewater_Cutlass.GetItem();
+                                if (BILGE.IsReady())
+                                {
+                                    var target = TargetSelector.GetTarget(BILGE.Range, TargetSelector.DamageType.Physical);
+                                    if (target != null)
+                                    {
+                                        BILGE.Cast(target);
+                                    }
+                                }
+                                else
+                                {
+                                    var BOTRK = ItemData.Blade_of_the_Ruined_King.GetItem();
+                                    if (BOTRK.IsReady())
+                                    {
+                                        var target = TargetSelector.GetTarget(BOTRK.Range, TargetSelector.DamageType.Physical);
+                                        if (target != null)
+                                        {
+                                            BOTRK.Cast(target);
+                                        }
+                                    }
+                                }
+
+                                var TIAMAT = ItemData.Tiamat_Melee_Only.GetItem();
+                                if (TIAMAT.IsReady())
+                                {
+                                    var target = TargetSelector.GetTarget(TIAMAT.Range, TargetSelector.DamageType.Physical);
+                                    if (target != null)
+                                    {
+                                        TIAMAT.Cast();
+                                    }
+                                }
+                                else
+                                {
+                                    var HYDRA = ItemData.Ravenous_Hydra_Melee_Only.GetItem();
+                                    if (HYDRA.IsReady())
+                                    {
+                                        var target = TargetSelector.GetTarget(HYDRA.Range, TargetSelector.DamageType.Physical);
+                                        if (target != null)
+                                        {
+                                            HYDRA.Cast();
+                                        }
+                                    }
+                                }
+                            }
+                        }
                         break;
+
+                    case Orbwalking.OrbwalkingMode.Flee:
+                        {
+                            var FW = MenuProvider.Champion.Flee.UseW;
+                            if (!FW || wShadow == wCheck.Cooltime)
+                            {
+                                return;
+                            }
+                            if (FW)
+                            {
+                                if (W.isReadyPerfectly() && wShadow == wCheck.First)
+                                {
+                                    W.Cast(Game.CursorPos);
+                                }
+
+                                if (wShadow == wCheck.Second)
+                                {
+                                    W.Cast();
+                                }
+                            }
+                        }
+                        break;
+
+                    case Orbwalking.OrbwalkingMode.LastHit:
+                        {
+                            var LE = MenuProvider.Champion.Lasthit.UseE;
+                            if (LE)
+                            {
+                                if (Player.Mana > E.ManaCost)
+                                {
+                                    var target = MinionManager.GetMinions(E.Range).FirstOrDefault(x => x.isKillableAndValidTarget(E.GetDamage(x, 1), E.DamageType, E.Range));
+                                    if (target != null)
+                                    {
+                                        E.Cast(target, false, true);
+                                    }
+                                }
+                            }
+                        }
+                        break;
+
+                    case Orbwalking.OrbwalkingMode.Mixed:
+                        {
+                            var WEQMana = W.ManaCost + E.ManaCost + Q.ManaCost;
+                            var HW = MenuProvider.Champion.Harass.UseW;
+                            if (HW)
+                            {
+                                if (W.isReadyPerfectly() && wShadow == wCheck.First && Player.Mana >= WEQMana)
+                                {
+                                    var target = TargetSelector.GetTarget(W.Range, TargetSelector.DamageType.Physical);
+                                    if (target != null)
+                                    {
+                                        W.Cast(target, false, true);
+                                    }
+                                }
+                            }
+
+                            var HE = MenuProvider.Champion.Harass.UseE;
+                            if (HE)
+                            {
+                                if (E.isReadyPerfectly())
+                                {
+                                    if (wShadow == wCheck.Second)
+                                    {
+                                        var target = TargetSelector.GetTarget(W.Range + E.Range, E.DamageType);
+                                        if (target != null)
+                                        {
+                                            E.Cast();
+                                        }
+                                    }
+                                    else
+                                    {
+                                        var target = TargetSelector.GetTarget(E.Range, E.DamageType);
+                                        if (Player.Mana < WEQMana && Player.Mana >= E.ManaCost || !HW && wShadow == wCheck.First || wShadow == wCheck.Cooltime)
+                                        {
+                                            if (target != null)
+                                            {
+                                                E.Cast();
+                                            }
+                                        }                  
+                                    }
+                                }
+                            }
+
+                            var CQ = MenuProvider.Champion.Harass.UseQ;
+                            if (CQ)
+                            {
+                                if (Q.isReadyPerfectly())
+                                {
+                                    if (wShadow == wCheck.Second)
+                                    {
+                                        var target = TargetSelector.GetTarget(W.Range + Q.Range, Q.DamageType);
+                                        if (target != null)
+                                        {
+                                            Q.Cast(target, false, true);
+                                        }
+                                    }
+                                    else                                    
+                                    {
+                                        var target = TargetSelector.GetTarget(Q.Range, Q.DamageType);
+                                        if (Player.Mana < WEQMana && Player.Mana >= Q.ManaCost || !HW && wShadow == wCheck.First || wShadow == wCheck.Cooltime)
+                                        {
+                                            if (target != null)
+                                            {
+                                                Q.Cast(target, false, true);
+                                            }
+                                        }                                        
+                                    }
+                                }
+                            }
+                        }
+                        break;
+
+                    case Orbwalking.OrbwalkingMode.LaneClear:
+                        {
+                            var LQ = MenuProvider.Champion.Laneclear.UseQ;
+                            if (LQ)
+                            {
+                                if (Player.Mana >= Q.ManaCost)
+                                {
+                                    if (Q.isReadyPerfectly())
+                                    {
+                                        var qLoc = Q.GetLineFarmLocation(MinionManager.GetMinions(Q.Range));
+                                        if (qLoc.MinionsHit >= 1)
+                                        {
+                                            Q.Cast(qLoc.Position);
+                                        }
+                                    }
+                                }
+                            }
+
+                            var LE = MenuProvider.Champion.Laneclear.UseE;
+                            if (LE)
+                            {
+                                if (Player.Mana >= E.ManaCost)
+                                {
+                                    if (E.isReadyPerfectly())
+                                    {
+                                        if (wShadow == wCheck.Second)
+                                        {
+                                            var eLoc = E.GetCircularFarmLocation(MinionManager.GetMinions(E.Range + W.Range));
+                                            if (eLoc.MinionsHit >= 1)
+                                            {
+                                                E.Cast();
+                                            }
+                                        }
+                                        else
+                                        {
+                                            var eLoc = E.GetCircularFarmLocation(MinionManager.GetMinions(E.Range));
+                                            if (eLoc.MinionsHit >= 1)
+                                            {
+                                                E.Cast();
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+
+                            var JQ = MenuProvider.Champion.Jungleclear.UseQ;
+                            if (JQ)
+                            {
+                                if (Player.Mana >= Q.ManaCost)
+                                {
+                                    if (Q.isReadyPerfectly())
+                                    {
+                                        var qMob = MinionManager.GetMinions
+                                            (Q.Range, MinionTypes.All, MinionTeam.Neutral, MinionOrderTypes.MaxHealth).FirstOrDefault(x => x.IsValidTarget(Q.Range));
+                                        if (qMob != null)
+                                        {
+                                            Q.Cast(qMob);
+                                        }
+                                    }
+                                }
+                            }
+
+                            var JE = MenuProvider.Champion.Jungleclear.UseE;
+                            if (JE)
+                            {
+                                if (Player.Mana >= E.ManaCost)
+                                {
+                                    if (E.isReadyPerfectly())
+                                    {
+                                        if (wShadow == wCheck.Second)
+                                        {
+                                            var eMob = MinionManager.GetMinions
+                                                (E.Range + W.Range, MinionTypes.All, MinionTeam.Neutral, MinionOrderTypes.MaxHealth).FirstOrDefault(x => x.IsValidTarget(E.Range + W.Range));
+                                            if (eMob != null)
+                                            {
+                                                E.Cast();
+                                            }
+                                        }
+                                        else
+                                        {
+                                            var eMob = MinionManager.GetMinions
+                                                (E.Range, MinionTypes.All, MinionTeam.Neutral, MinionOrderTypes.MaxHealth).FirstOrDefault(x => x.IsValidTarget(E.Range));
+                                            if (eMob != null)
+                                            {
+                                                E.Cast();
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        break;
+
+                    case Orbwalking.OrbwalkingMode.Combo:
+                        {
+                            var CR = MenuProvider.Champion.Combo.UseR;
+                            if (CR)
+                            {
+                                if (R.isReadyPerfectly() && rShadow == rCheck.First)
+                                {
+                                    var CO = MenuProvider.Champion.Combo.getBoolValue("Use R only Selected");
+                                    if (!CO)
+                                    {
+                                        var target = TargetSelector.GetTarget(R.Range, TargetSelector.DamageType.Physical);
+                                        if (target != null && !target.IsZombie)
+                                        {
+                                            R.Cast(target);
+                                        }
+                                    }
+                                    else
+                                    {
+                                        var target = TargetSelector.GetSelectedTarget();
+                                        if (target != null && !target.IsZombie)
+                                        {
+                                            R.Cast(target);
+                                        }
+                                    }
+                                }
+                            }
+
+                            var CE = MenuProvider.Champion.Combo.UseE;
+                            if (CE)
+                            {
+                                if (E.isReadyPerfectly())
+                                {
+                                    if (rShadow == rCheck.Second)
+                                    {
+                                        if (wShadow == wCheck.Second)
+                                        {
+                                            var target = TargetSelector.GetTarget(E.Range + W.Range, E.DamageType);
+                                            if (target != null)
+                                            {
+                                                E.Cast();
+                                            }
+                                        }
+                                        else
+                                        {
+                                            if (rShadow == rCheck.Second)
+                                            {
+                                                var target = TargetSelector.GetTarget(E.Range + R.Range, E.DamageType);
+                                                if (target != null)
+                                                {
+                                                    E.Cast();
+                                                }
+                                            }
+                                            else
+                                            {
+                                                var target = TargetSelector.GetTarget(E.Range, E.DamageType);
+                                                if (target != null)
+                                                {
+                                                    E.Cast();
+                                                }
+                                            }
+                                        }
+                                    }
+                                    else if (!CR || rShadow == rCheck.Cooltime)
+                                    {
+                                        if (wShadow == wCheck.Second)
+                                        {
+                                            var target = TargetSelector.GetTarget(E.Range + W.Range, E.DamageType);
+                                            if (target != null)
+                                            {
+                                                E.Cast();
+                                            }
+                                        }
+                                        else
+                                        {
+                                            if (rShadow == rCheck.Second)
+                                            {
+                                                var target = TargetSelector.GetTarget(E.Range + R.Range, E.DamageType);
+                                                if (target != null)
+                                                {
+                                                    E.Cast();
+                                                }
+                                            }
+                                            else
+                                            {
+                                                var target = TargetSelector.GetTarget(E.Range, E.DamageType);
+                                                if (target != null)
+                                                {
+                                                    E.Cast();
+                                                }
+                                            }
+                                        }
+                                    }                                    
+                                }
+                            }
+
+                            var CQ = MenuProvider.Champion.Combo.UseQ;
+                            if (CQ)
+                            {
+                                if (Q.isReadyPerfectly())
+                                {
+                                    if (rShadow == rCheck.Second)
+                                    {
+                                        if (wShadow == wCheck.Second)
+                                        {
+                                            var target = TargetSelector.GetTarget(Q.Range + W.Range, Q.DamageType);
+                                            if (target != null)
+                                            {
+                                                Q.Cast(target, false, true);
+                                            }
+                                        }
+                                        else
+                                        {
+                                            if (rShadow == rCheck.Second)
+                                            {
+                                                var target = TargetSelector.GetTarget(Q.Range + R.Range, Q.DamageType);
+                                                if (target != null)
+                                                {
+                                                    Q.Cast(target, false, true);
+                                                }
+                                            }
+                                            else
+                                            {
+                                                var target = TargetSelector.GetTarget(Q.Range, Q.DamageType);
+                                                if (target != null)
+                                                {
+                                                    Q.Cast(target, false, true);
+                                                }
+                                            }
+                                        }
+                                    }
+                                    else if (!CR || rShadow == rCheck.Cooltime)
+                                    {
+                                        if (wShadow == wCheck.Second)
+                                        {
+                                            var target = TargetSelector.GetTarget(Q.Range + W.Range, Q.DamageType);
+                                            if (target != null)
+                                            {
+                                                Q.Cast(target, false, true);
+                                            }
+                                        }
+                                        else
+                                        {
+                                            if (rShadow == rCheck.Second)
+                                            {
+                                                var target = TargetSelector.GetTarget(Q.Range + R.Range, Q.DamageType);
+                                                if (target != null)
+                                                {
+                                                    Q.Cast(target, false, true);
+                                                }
+                                            }
+                                            else
+                                            {
+                                                var target = TargetSelector.GetTarget(Q.Range, Q.DamageType);
+                                                if (target != null)
+                                                {
+                                                    Q.Cast(target, false, true);
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        break;
+
                     case Orbwalking.OrbwalkingMode.None:
                         break;
                 }
             }
         }
-
-        private void LineCombo()
-        {
-            var youmuu = ItemData.Youmuus_Ghostblade.GetItem();
-            var tiamat = ItemData.Tiamat_Melee_Only.GetItem();
-            var hydra = ItemData.Ravenous_Hydra_Melee_Only.GetItem();
-            var botrk = ItemData.Blade_of_the_Ruined_King.GetItem();
-            var bilge = ItemData.Bilgewater_Cutlass.GetItem();
-            var lchTarget = HeroManager.Enemies.Where(x => x.IsValidTarget(hydra.Range)).FirstOrDefault();
-            var lctTarget = HeroManager.Enemies.Where(x => x.IsValidTarget(tiamat.Range)).FirstOrDefault();
-            var lcyTarget = HeroManager.Enemies.Where(x => x.IsValidTarget(1500)).ToList();
-            var lcbTarget = HeroManager.Enemies.Where(x => x.IsValidTarget(botrk.Range)).FirstOrDefault();
-            var lcBTarget = HeroManager.Enemies.Where(x => x.IsValidTarget(bilge.Range)).FirstOrDefault();
-            var lcTarget = HeroManager.Enemies.Where(x => x.IsValidTarget(W.Range)).FirstOrDefault();
-            var wPos = lcTarget.Position.Extend(Player.ServerPosition, -500);
-
-            if (lcyTarget != null && youmuu.IsReady())
-            {
-                youmuu.Cast();
-            }
-
-            if (lcbTarget != null && botrk.IsReady() && rlocation == CastR.Second || lcBTarget != null && bilge.IsReady() && rlocation == CastR.Second)
-            {
-                botrk.Cast(lcbTarget);
-                bilge.Cast(lcBTarget);
-            }
-
-            if (lctTarget != null && tiamat.IsReady() && rlocation == CastR.Second || lchTarget != null && hydra.IsReady() && rlocation == CastR.Second)
-            {
-                tiamat.Cast(lctTarget);
-                hydra.Cast(lchTarget);
-            }
-
-            if (E.IsReady() && rlocation == CastR.Second)
-            {
-                E.Cast();
-            }
-
-            if (W.IsReady() && wlocation == CastW.First && rlocation == CastR.Second)
-            {
-                W.Cast(wPos);
-            }
-
-            if (Q.IsReady() && wlocation == CastW.Second && rlocation == CastR.Second)
-            {
-                Q.CastOnBestTarget(0f, false, true);
-            }
-        }
-
-        private void Combo()
-        {
-            var CQ = MenuProvider.Champion.Combo.UseQ;
-            var CE = MenuProvider.Champion.Combo.UseE;
-
-            if (CE && E.IsReady())
-            {
-                E.CastOnBestTarget(0f, false, true);
-            }
-
-            if (CQ && Q.IsReady())
-            {
-                Q.CastOnBestTarget(0f, false, true);
-            }
-            
-        }
-
-        private void Harass()
-        {
-            var CQ = MenuProvider.Champion.Harass.UseQ;
-            var CW = MenuProvider.Champion.Harass.UseW;
-            var CE = MenuProvider.Champion.Harass.UseE;
-
-            if (CW && wlocation == CastW.First && W.IsReady() && Player.Mana > W.ManaCost + E.ManaCost + Q.ManaCost)
-            {
-                W.CastOnBestTarget(0f, false, false);
-            }
-
-            if (CE && wlocation == CastW.Second && E.IsReady())
-            {
-                E.Cast();
-            }
-
-           if (CE && !CW && E.IsReady() || CE && !W.IsReady() && E.IsReady() || CE && E.IsReady() && !(Player.Mana > W.ManaCost + W.ManaCost + Q.ManaCost))
-            {
-                E.CastOnBestTarget(0f, false, true);
-            }
-
-            if (CQ && wlocation == CastW.Second && Q.IsReady())
-            {
-                Q.CastOnBestTarget(0f, false, true);
-            }
-
-           if (CQ && !CW && Q.IsReady() || CQ && !W.IsReady() && Q.IsReady() || CQ && Q.IsReady() && !(Player.Mana > W.ManaCost + W.ManaCost + Q.ManaCost))
-            {
-                Q.CastOnBestTarget(0f, false, true);
-            }
-        }
-
-        private void LastHit()
-        {
-            var LHE = MenuProvider.Champion.Lasthit.UseE;
-            var Minions = MinionManager.GetMinions(E.Range, MinionTypes.All, MinionTeam.Enemy);
-            var eTarget = Minions.FirstOrDefault(x => Func.isKillable(x, E, 0) && HealthPrediction.GetHealthPrediction(x, (int)(Player.Distance(x, false) / E.Speed), (int)(E.Delay * 1000 * Game.Ping / 2)) > 0);
-
-            if (!(Player.Mana > E.ManaCost))
-            {
-                return;
-            }
-
-            if (Minions.Count <= 0)
-            {
-                return;
-            }
-
-            if (LHE && E.IsReady())
-            {
-                if (eTarget != null)
-                {
-                    E.Cast(eTarget);
-                }
-            }
-        }
-
-        private void Flee()
-        {
-            var FW = MenuProvider.Champion.Flee.UseW;
-
-            if (FW && W.IsReady() && wlocation == CastW.First && Player.Mana > W.ManaCost)
-            {
-                W.Cast(Game.CursorPos);
-            }
-
-            if (FW && W.IsReady() && wlocation == CastW.Second)
-            {
-                W.Cast();
-            }
-        }
-
-        private void LaneClear()
-        {
-            var Minions = MinionManager.GetMinions(1000, MinionTypes.All, MinionTeam.Enemy);
-            var QMinions = MinionManager.GetMinions(Q.Range, MinionTypes.All, MinionTeam.Enemy);
-            var EMinions = MinionManager.GetMinions(E.Range, MinionTypes.All, MinionTeam.Enemy);
-            var qLoc = Q.GetLineFarmLocation(QMinions.Where(x => x.IsValidTarget(Q.Range)).ToList());
-            var LQ = MenuProvider.Champion.Laneclear.UseQ;
-            var LE = MenuProvider.Champion.Laneclear.UseE;
-
-            if (Minions.Count <= 0)
-            {
-                return;
-            }
-
-            if (LQ && Q.IsReady() && Player.Mana > Q.ManaCost)
-            {
-                if (qLoc.MinionsHit >= 1)
-                {
-                    Q.Cast(qLoc.Position);
-                }
-            }
-
-            if (LE && E.IsReady() && Player.Mana > E.ManaCost)
-            {
-                if (EMinions.Count >= 1)
-                {
-                    E.Cast();
-                }
-            }
-        }
-
-        private void JungleClear()
-        {
-            var Mobs = MinionManager.GetMinions(1000, MinionTypes.All, MinionTeam.Neutral);
-            var qLoc = Q.GetLineFarmLocation(Mobs.Where(x => x.IsValidTarget(Q.Range)).ToList());
-            var JQ = MenuProvider.Champion.Jungleclear.UseQ;
-            var JE = MenuProvider.Champion.Jungleclear.UseE;
-
-            if (Mobs.Count <= 0)
-            {
-                return;
-            }
-
-            if (JQ && Q.IsReady() && Player.Mana > Q.ManaCost)
-            {
-                Q.Cast(qLoc.Position);
-            }
-
-            if (JE && E.IsReady() && Player.Mana > E.ManaCost)
-            {
-                E.Cast();
-            }
-        }
-
+        
         private void Spellbook_OnCastSpell(Spellbook sender, SpellbookCastSpellEventArgs args)
         {
-            if (wlocation == CastW.Second || rlocation == CastR.First)
+            if (args.Slot == SpellSlot.W || args.Slot == SpellSlot.R)
             {
                 Orbwalking.ResetAutoAttackTimer();
             }
@@ -306,49 +638,28 @@ namespace Zed_Sharpy.Plugins
 
         private void Drawing_OnDraw(EventArgs args)
         {
-            if (Player.IsDead)
-            {
-                return;
-            }
-
             var drawQ = MenuProvider.Champion.Drawings.DrawQrange;
+            if (Q.isReadyPerfectly() && drawQ.Active)
+            {
+                Render.Circle.DrawCircle(Player.Position, Q.Range, drawQ.Color);
+            }
+
             var drawW = MenuProvider.Champion.Drawings.DrawWrange;
+            if (W.isReadyPerfectly() && drawW.Active && wShadow == wCheck.First)
+            {
+                Render.Circle.DrawCircle(Player.Position, W.Range, drawW.Color);
+            }
+
             var drawE = MenuProvider.Champion.Drawings.DrawErange;
+            if (E.isReadyPerfectly() && drawE.Active)
+            {
+                Render.Circle.DrawCircle(Player.Position, E.Range, drawE.Color);
+            }
+
             var drawR = MenuProvider.Champion.Drawings.DrawRrange;
-
-            if (Q.IsReady() && drawQ.Active)
+            if (R.isReadyPerfectly() && drawR.Active && rShadow == rCheck.First)
             {
-                Render.Circle.DrawCircle(Player.Position, Q.Range, drawQ.Color, 3);
-            }
-
-            if (W.IsReady() && drawW.Active && wlocation == CastW.First)
-            {
-                Render.Circle.DrawCircle(Player.Position, W.Range, drawW.Color, 3);
-            }
-
-            if (E.IsReady() && drawE.Active)
-            {
-                Render.Circle.DrawCircle(Player.Position, E.Range, drawE.Color, 3);
-            }
-
-            if (R.IsReady() && drawR.Active && rlocation == CastR.First)
-            {
-                Render.Circle.DrawCircle(Player.Position, R.Range, drawR.Color, 3);
-            }
-        }
-
-        private void Orbwalking_BeforeAttack(Orbwalking.BeforeAttackEventArgs args)
-        {
-            var LE = MenuProvider.Champion.Lasthit.UseE;
-
-            if(!args.Unit.IsMe)
-            {
-                return;
-            }
-
-            if (Orbwalker.ActiveMode == Orbwalking.OrbwalkingMode.LastHit && E.IsReady() && Player.Mana > E.ManaCost)
-            {
-                args.Process = false;
+                Render.Circle.DrawCircle(Player.Position, R.Range, drawR.Color);
             }
         }
 
@@ -356,73 +667,52 @@ namespace Zed_Sharpy.Plugins
         {
             float damage = 0;
 
-            if (Q.IsReady())
+            var BILGE = ItemData.Bilgewater_Cutlass.GetItem();
+            if (BILGE.IsReady())
             {
-                if (wlocation == CastW.Second)
-                {
-                    damage += Q.GetDamage(enemy) * 2;
-                }
-
-                if (wlocation == CastW.First || !W.IsReady())
-                {
-                    damage += Q.GetDamage(enemy);
-                }
+                damage += (float)Player.GetItemDamage(enemy, Damage.DamageItems.Bilgewater);
             }
 
-            if (E.IsReady())
+            var BOTRK = ItemData.Blade_of_the_Ruined_King.GetItem();
+            if (BOTRK.IsReady())
+            {
+                damage += (float)Player.GetItemDamage(enemy, Damage.DamageItems.Botrk);
+            }
+
+            var TIAMAT = ItemData.Tiamat_Melee_Only.GetItem();
+            if (TIAMAT.IsReady())
+            {
+                damage += (float)Player.GetItemDamage(enemy, Damage.DamageItems.Tiamat);
+            }
+
+            var HYDRA = ItemData.Ravenous_Hydra_Melee_Only.GetItem();
+            if (HYDRA.IsReady())
+            {
+                damage += (float)Player.GetItemDamage(enemy, Damage.DamageItems.Hydra);
+            }
+
+            if (Q.isReadyPerfectly())
+            {
+                damage += Q.GetDamage(enemy);
+            }
+
+            if (W.isReadyPerfectly())
+            {
+                damage += Q.GetDamage(enemy) / 2;
+            }
+
+            if (E.isReadyPerfectly())
             {
                 damage += E.GetDamage(enemy);
             }
 
-            if (R.IsReady())
+            if (R.isReadyPerfectly())
             {
                 damage += R.GetDamage(enemy);
+                damage += (float)(R.Level * 0.15 + 0.05);
             }
 
             return damage;
         }
-
-        enum CastR
-        {
-            First,
-            Second,
-            Cooltime
-        }
-
-        private CastR rlocation
-        {
-            get
-            {
-                if (!R.IsReady())
-                {
-                    return
-                        CastR.Cooltime;
-                }
-                return
-                    (ObjectManager.Player.Spellbook.GetSpell(SpellSlot.R).Name == "ZedR" ? CastR.First : CastR.Second);
-            }
-        }
-
-        enum CastW
-        {
-            First,
-            Second,
-            Cooltime
-        }
-
-        private CastW wlocation
-        {
-            get
-            {
-                if (!W.IsReady())
-                {
-                    return
-                        CastW.Cooltime;
-                }
-                return
-                    (ObjectManager.Player.Spellbook.GetSpell(SpellSlot.W).Name == "ZedW" ? CastW.First : CastW.Second);
-            }
-        }
-
     }
 }
