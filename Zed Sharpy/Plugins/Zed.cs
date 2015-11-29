@@ -282,10 +282,13 @@ namespace Zed_Sharpy.Plugins
                             {
                                 if (Player.Mana > E.ManaCost)
                                 {
-                                    var target = MinionManager.GetMinions(E.Range).FirstOrDefault(x => x.isKillableAndValidTarget(E.GetDamage(x, 1), E.DamageType, E.Range));
-                                    if (target != null)
+                                    if (E.isReadyPerfectly())
                                     {
-                                        E.Cast(target, false, true);
+                                        var target = MinionManager.GetMinions(E.Range).FirstOrDefault(x => x.isKillableAndValidTarget(E.GetDamage(x, 1), E.DamageType, E.Range));
+                                        if (target != null)
+                                        {
+                                            E.Cast(target, false, true);
+                                        }
                                     }
                                 }
                             }
