@@ -641,25 +641,25 @@ namespace Zed_Sharpy.Plugins
             var drawQ = MenuProvider.Champion.Drawings.DrawQrange;
             if (Q.isReadyPerfectly() && drawQ.Active)
             {
-                Render.Circle.DrawCircle(Player.Position, Q.Range, drawQ.Color);
+                Render.Circle.DrawCircle(Player.Position, Q.Range, drawQ.Color,3);
             }
 
             var drawW = MenuProvider.Champion.Drawings.DrawWrange;
             if (W.isReadyPerfectly() && drawW.Active && wShadow == wCheck.First)
             {
-                Render.Circle.DrawCircle(Player.Position, W.Range, drawW.Color);
+                Render.Circle.DrawCircle(Player.Position, W.Range, drawW.Color,3);
             }
 
             var drawE = MenuProvider.Champion.Drawings.DrawErange;
             if (E.isReadyPerfectly() && drawE.Active)
             {
-                Render.Circle.DrawCircle(Player.Position, E.Range, drawE.Color);
+                Render.Circle.DrawCircle(Player.Position, E.Range, drawE.Color,3);
             }
 
             var drawR = MenuProvider.Champion.Drawings.DrawRrange;
             if (R.isReadyPerfectly() && drawR.Active && rShadow == rCheck.First)
             {
-                Render.Circle.DrawCircle(Player.Position, R.Range, drawR.Color);
+                Render.Circle.DrawCircle(Player.Position, R.Range, drawR.Color,3);
             }
         }
 
