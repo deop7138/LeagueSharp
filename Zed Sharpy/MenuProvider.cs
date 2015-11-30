@@ -441,6 +441,17 @@ namespace Zed_Sharpy
                 }
 
                 /// <summary>
+                /// Harass 메뉴 안에 존재하는 항목의 LeageuSharp.Common.KeyBind 구조체를 가져옵니다.
+                /// </summary>
+                /// <param name="DisplayName"></param>
+                /// <param name="ChampUniq"></param>
+                /// <returns>LeageuSharp.Common.KeyBind 구조체를 반환합니다.</returns>
+                internal static KeyBind getKeyBindValue(string DisplayName, bool ChampUniq = true)
+                {
+                    return MenuInstance.Item("Harass." + DisplayName, ChampUniq).GetValue<KeyBind>();
+                }
+
+                /// <summary>
                 /// 'Auto Harass' 항목의 값을 반환합니다.
                 /// </summary>
                 internal static bool AutoHarass
