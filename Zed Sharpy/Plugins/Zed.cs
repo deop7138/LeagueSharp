@@ -89,11 +89,12 @@ namespace Zed_Sharpy.Plugins
             MenuProvider.Champion.Combo.addItem("Use Item In Line Combo", true);
 
             MenuProvider.Champion.Harass.addUseQ();
-            MenuProvider.Champion.Harass.addUseW();
+            MenuProvider.Champion.Harass.addItem("Use W Toggle", new KeyBind('Y', KeyBindType.Toggle));
             MenuProvider.Champion.Harass.addUseE();
 
             MenuProvider.Champion.Flee.addUseW();
 
+            MenuProvider.Champion.Lasthit.addUseQ();
             MenuProvider.Champion.Lasthit.addUseE();
 
             MenuProvider.Champion.Laneclear.addUseQ();
@@ -126,6 +127,17 @@ namespace Zed_Sharpy.Plugins
                         if (Player.Mana >= E.ManaCost)
                         {
                             if (E.isReadyPerfectly())
+                            {
+                                args.Process = false;
+                            }
+                        }
+                    }
+                    var LQ = MenuProvider.Champion.Lasthit.UseQ;
+                    if (LQ)
+                    {
+                        if (Player.Mana >= Q.ManaCost)
+                        {
+                            if (Q.isReadyPerfectly())
                             {
                                 args.Process = false;
                             }
@@ -292,15 +304,31 @@ namespace Zed_Sharpy.Plugins
                                     }
                                 }
                             }
+                            var LQ = MenuProvider.Champion.Lasthit.UseQ;
+                            if (LQ)
+                            {
+                                if (Player.Mana > Q.ManaCost)
+                                {
+                                    if (Q.isReadyPerfectly())
+                                    {
+                                        var target = MinionManager.GetMinions(Q.Range).FirstOrDefault(x => x.isKillableAndValidTarget(Q.GetDamage(x, 1), Q.DamageType, Q.Range));
+                                        if (target != null)
+                                        {
+                                            Q.Cast(target);
+                                        }
+                                    }
+                                }
+                            }
                         }
                         break;
 
                     case Orbwalking.OrbwalkingMode.Mixed:
                         {
                             var WEQMana = W.ManaCost + E.ManaCost + Q.ManaCost;
-                            var HW = MenuProvider.Champion.Harass.UseW;
+                            var HW = MenuProvider.Champion.Harass.getKeyBindValue("Use W Toggle").Active;
                             if (HW)
                             {
+
                                 if (W.isReadyPerfectly() && wShadow == wCheck.First && Player.Mana >= WEQMana)
                                 {
                                     var target = TargetSelector.GetTarget(W.Range, TargetSelector.DamageType.Physical);
