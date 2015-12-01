@@ -98,7 +98,7 @@ namespace Zed_Sharpy
             "monkeykingdoubleattack", "mordekaisermaceofspades", "nasusq", "nautiluspiercinggaze", "netherblade",
             "gangplankqwrapper", "poppydevastatingblow", "powerfist", "renektonpreexecute", "rengarq", "shyvanadoubleattack",
             "sivirw", "takedown", "talonnoxiandiplomacy", "trundletrollsmash", "vaynetumble", "vie", "volibearq",
-            "xenzhaocombotarget", "yorickspectral", "reksaiq", "itemtitanichydracleave", "masochism"
+            "xenzhaocombotarget", "yorickspectral", "reksaiq", "itemtitanichydracleave", "masochism","ilaoiw"
         };
 
 
@@ -878,12 +878,64 @@ namespace Zed_Sharpy
 
                 _config.AddItem(
                     new MenuItem("StillCombo", "Combo without moving").SetShared().SetValue(new KeyBind('N', KeyBindType.Press)));
+                _config.Item("StillCombo").ValueChanged +=
+                    (sender, args) => { Move = !args.GetNewValue<KeyBind>().Active; };
+
+                var menuAttackSpeed = new Menu("Attack Speed Limiter", "AttackSpeedLimiter");
+                {
+                    menuAttackSpeed.AddItem(
+                        new MenuItem("AttackSpeedLimiter.Enabled", "Enabled").SetShared().SetValue(false))
+                        .Permashow(true, "Orbwalker | Attack Speed Limiter", SharpDX.Color.Aqua);
+                    menuAttackSpeed.AddItem(
+                        new MenuItem("AttackSpeedLimiter.MaxAttackSpeed", "Limit Attack Speed [Recommend: 2150]:")
+                            .SetShared().SetValue(new Slider(2150, 650, 3500)));
+                    menuAttackSpeed.AddItem(
+                        new MenuItem("AttackSpeedLimiter.LimitWhen", "Limit:").SetShared()
+                            .SetValue(new StringList(new[] { "If I'm moving / kite mode", "Everytime" }, 0)));
+                    _config.AddSubMenu(menuAttackSpeed);
+                }
 
                 Player = ObjectManager.Player;
                 Game.OnUpdate += GameOnOnGameUpdate;
                 Drawing.OnDraw += DrawingOnOnDraw;
                 Instances.Add(this);
             }
+
+            /// <summary>
+            /// Returning Attack Speed Delay
+            /// </summary>
+            public static float AttackSpeedDelay
+            {
+                get
+                {
+                    if (!_config.Item("AttackSpeedLimiter.Enabled").GetValue<bool>())
+                    {
+                        return ObjectManager.Player.AttackDelay;
+                    }
+
+                    var speed = (float)_config.Item("AttackSpeedLimiter.MaxAttackSpeed").GetValue<Slider>().Value;
+
+                    switch (_config.Item("AttackSpeedLimiter.LimitWhen").GetValue<StringList>().SelectedIndex)
+                    {
+                        case 0:
+                            {
+                                return ObjectManager.Player.Path.Count() != 0
+                                    ? ObjectManager.Player.AttackDelay > 1000 / speed
+                                        ? ObjectManager.Player.AttackDelay
+                                        : 1000 / speed
+                                    : ObjectManager.Player.AttackDelay;
+                            }
+                        case 1:
+                            {
+                                return ObjectManager.Player.AttackDelay > 1000 / speed
+                                    ? ObjectManager.Player.AttackDelay
+                                    : 1000 / speed;
+                            }
+                    }
+                    return ObjectManager.Player.AttackDelay;
+                }
+            }
+
 
             /// <summary>
             /// Determines if a target is in auto attack range.
@@ -1036,7 +1088,7 @@ namespace Zed_Sharpy
                                 minion.IsValidTarget() && minion.Team != GameObjectTeam.Neutral &&
                                 InAutoAttackRange(minion) && MinionManager.IsMinion(minion, false) &&
                                 HealthPrediction.LaneClearHealthPrediction(
-                                    minion, (int)((Player.AttackDelay * 1000) * LaneClearWaitTimeMod), FarmDelay) <=
+                                    minion, (int)((AttackSpeedDelay * 1000) * LaneClearWaitTimeMod), FarmDelay) <=
                                 Player.GetAutoAttackDamage(minion));
             }
 
@@ -1104,7 +1156,7 @@ namespace Zed_Sharpy
                 }
 
                 //Forced target
-                if (ActiveMode == OrbwalkingMode.Combo && _forcedTarget.IsValidTarget() && InAutoAttackRange(_forcedTarget))
+                if (_forcedTarget.IsValidTarget() && InAutoAttackRange(_forcedTarget))
                 {
                     return _forcedTarget;
                 }
@@ -1172,7 +1224,7 @@ namespace Zed_Sharpy
                         if (_prevMinion.IsValidTarget() && InAutoAttackRange(_prevMinion))
                         {
                             var predHealth = HealthPrediction.LaneClearHealthPrediction(
-                                _prevMinion, (int)((Player.AttackDelay * 1000) * LaneClearWaitTimeMod), FarmDelay);
+                                _prevMinion, (int)((AttackSpeedDelay * 1000) * LaneClearWaitTimeMod), FarmDelay);
                             if (predHealth >= 2 * Player.GetAutoAttackDamage(_prevMinion) ||
                                 Math.Abs(predHealth - _prevMinion.Health) < float.Epsilon)
                             {
@@ -1188,7 +1240,7 @@ namespace Zed_Sharpy
                                           minion.CharData.BaseSkinName != "gangplankbarrel")
                                   let predHealth =
                                       HealthPrediction.LaneClearHealthPrediction(
-                                          minion, (int)((Player.AttackDelay * 1000) * LaneClearWaitTimeMod), FarmDelay)
+                                          minion, (int)((AttackSpeedDelay * 1000) * LaneClearWaitTimeMod), FarmDelay)
                                   where
                                       predHealth >= 2 * Player.GetAutoAttackDamage(minion) ||
                                       Math.Abs(predHealth - minion.Health) < float.Epsilon
@@ -1216,9 +1268,6 @@ namespace Zed_Sharpy
                     {
                         return;
                     }
-
-                    //Block movement if StillCombo is used
-                    Move = !_config.Item("StillCombo").GetValue<KeyBind>().Active;
 
                     //Prevent canceling important spells
                     if (Player.IsCastingInterruptableSpell(true))
