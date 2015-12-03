@@ -31,15 +31,15 @@ namespace Mundo_Sharpy.Plugins
 
             MenuProvider.Champion.Combo.addUseQ();
             MenuProvider.Champion.Combo.addUseW();
+            MenuProvider.Champion.Combo.addItem("Use W If HP", new Slider(10, 0, 100));
             MenuProvider.Champion.Combo.addUseE();
-            MenuProvider.Champion.Combo.addItem("If HP", new Slider(10, 0, 100));
             MenuProvider.Champion.Combo.addUseR();
             MenuProvider.Champion.Combo.addItem("Use R HP Percent", new Slider(60, 0, 100));
 
             MenuProvider.Champion.Harass.addUseQ();
             MenuProvider.Champion.Harass.addUseW();
+            MenuProvider.Champion.Harass.addItem("Use W If HP", new Slider(10, 0, 100));
             MenuProvider.Champion.Harass.addUseE();
-            MenuProvider.Champion.Harass.addItem("If HP", new Slider(10, 0, 100));
 
             MenuProvider.Champion.Lasthit.addUseQ();
 
@@ -151,21 +151,21 @@ namespace Mundo_Sharpy.Plugins
 
                     case Orbwalking.OrbwalkingMode.Mixed:
                         {
-                            var HP = MenuProvider.Champion.Harass.getSliderValue("If HP").Value;
-                            if (Player.HealthPercent >= HP)
+                            var HQ = MenuProvider.Champion.Harass.UseQ;
+                            if (HQ)
                             {
-                                var HQ = MenuProvider.Champion.Harass.UseQ;
-                                if (HQ)
+                                if (Q.isReadyPerfectly())
                                 {
-                                    if (Q.isReadyPerfectly())
+                                    var target = TargetSelector.GetTargetNoCollision(Q);
+                                    if (target.IsValidTarget(Q.Range))
                                     {
-                                        var target = TargetSelector.GetTargetNoCollision(Q);
-                                        if (target.IsValidTarget(Q.Range))
-                                        {
-                                            Q.Cast(target);
-                                        }
+                                        Q.Cast(target);
                                     }
                                 }
+                            }
+                            var HP = MenuProvider.Champion.Harass.getSliderValue("Use W If HP").Value;
+                            if (Player.HealthPercent >= HP)
+                            {
                                 var HW = MenuProvider.Champion.Harass.UseW;
                                 if (HW)
                                 {
@@ -222,21 +222,21 @@ namespace Mundo_Sharpy.Plugins
 
                     case Orbwalking.OrbwalkingMode.Combo:
                         {
-                            var HP = MenuProvider.Champion.Combo.getSliderValue("If HP").Value;
-                            if (Player.HealthPercent >= HP)
+                            var CQ = MenuProvider.Champion.Combo.UseQ;
+                            if (CQ)
                             {
-                                var CQ = MenuProvider.Champion.Combo.UseQ;
-                                if (CQ)
+                                if (Q.isReadyPerfectly())
                                 {
-                                    if (Q.isReadyPerfectly())
+                                    var target = TargetSelector.GetTargetNoCollision(Q);
+                                    if (target.IsValidTarget(Q.Range))
                                     {
-                                        var target = TargetSelector.GetTargetNoCollision(Q);
-                                        if (target.IsValidTarget(Q.Range))
-                                        {
-                                            Q.Cast(target);
-                                        }
+                                        Q.Cast(target);
                                     }
                                 }
+                            }
+                            var HP = MenuProvider.Champion.Combo.getSliderValue("Use W If HP").Value;
+                            if (Player.HealthPercent >= HP)
+                            {
                                 var CW = MenuProvider.Champion.Combo.UseW;
                                 if (CW)
                                 {
