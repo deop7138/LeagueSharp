@@ -15,7 +15,9 @@ namespace Zed_Sharpy.Plugins
     public class Zed
     {
         private Obj_AI_Hero Player = ObjectManager.Player;
+        private Obj_AI_Minion Shadow;
         private Spell Q, W, E, R;
+        private Vector3 rshadowpos;
         private Orbwalking.Orbwalker Orbwalker
         {
             get
@@ -66,6 +68,25 @@ namespace Zed_Sharpy.Plugins
                     (Player.Spellbook.GetSpell(SpellSlot.R).Name == "ZedR" ? rCheck.First : rCheck.Second);
             }
         }
+
+        private Obj_AI_Minion checkWshadow
+        {
+            get
+            {
+                return
+                    ObjectManager.Get<Obj_AI_Minion>().FirstOrDefault(x => x.IsVisible && x.IsAlly && x.Position != rshadowpos && x.Name == "Shadow");
+            }
+        }
+
+        private Obj_AI_Minion checkRshadow
+        {
+            get
+            {
+                return
+                    ObjectManager.Get<Obj_AI_Minion>().FirstOrDefault(x => x.IsVisible && x.IsAlly && x.Position == rshadowpos && x.Name == "Shadow");
+            }
+        }
+
         public Zed()
         {
             Game.PrintChat("<font Color = \"#00D8FF\">Zed Sharpy Loaded");
@@ -107,12 +128,28 @@ namespace Zed_Sharpy.Plugins
             MenuProvider.Champion.Drawings.addDrawWrange(Color.Green, true);
             MenuProvider.Champion.Drawings.addDrawErange(Color.Green, true);
             MenuProvider.Champion.Drawings.addDrawRrange(Color.Green, true);
+            MenuProvider.Champion.Drawings.addItem("Draw QW Range", new Circle(true, Color.Green));
             MenuProvider.Champion.Drawings.addDamageIndicator(getcombodamage);
 
             Drawing.OnDraw += Drawing_OnDraw;
             Spellbook.OnCastSpell += Spellbook_OnCastSpell;
             Game.OnUpdate += Game_OnUpdate;
             Orbwalking.BeforeAttack += Orbwalking_BeforeAttack;
+            Obj_AI_Minion.OnCreate += Obj_AI_Minion_OnCreate;
+        }
+        private void Obj_AI_Minion_OnCreate(GameObject sender, EventArgs args)
+        {
+            var i = sender as Obj_AI_Minion;
+            if (i != null)
+            {
+                if (i.Name.Equals("Shadow"))
+                {
+                    if (LastCastedSpell.LastCastPacketSent.Slot == SpellSlot.R)
+                    {
+                        rshadowpos = i.Position;
+                    }
+                }
+            }
         }
 
         private void Orbwalking_BeforeAttack(Orbwalking.BeforeAttackEventArgs args)
@@ -166,18 +203,18 @@ namespace Zed_Sharpy.Plugins
                                         var target = TargetSelector.GetTarget(R.Range, R.DamageType);
                                         if (target != null && !target.IsZombie)
                                         {
-                                            R.Cast(target);
+                                            R.CastOnUnit(target);
                                         }
                                     }
                                     else
                                     {
                                         var target = TargetSelector.GetSelectedTarget();
-                                        if (target != null && !target.IsZombie)
+                                        if (target != null && !target.IsZombie && target.Distance(Player.Position) <= R.Range)
                                         {
-                                            R.Cast(target);
+                                            R.CastOnUnit(target);
                                         }
                                     }
-                                }                                
+                                }
                             }
 
                             if (E.isReadyPerfectly() && wShadow == wCheck.First && rShadow == rCheck.Second)
@@ -185,14 +222,14 @@ namespace Zed_Sharpy.Plugins
                                 var target = TargetSelector.GetTarget(E.Range, E.DamageType);
                                 if (target != null)
                                 {
-                                    E.Cast(target);
+                                    E.Cast();
                                 }
                             }
 
                             if (W.isReadyPerfectly() && wShadow == wCheck.First && rShadow == rCheck.Second)
                             {
                                 var rtarget = TargetSelector.GetTarget(W.Range, R.DamageType);
-                                var wtarget = rtarget.Position.Extend(Player.ServerPosition, -500);
+                                var wtarget = rtarget.Position.Extend(Player.Position, -500);
                                 if (rtarget != null)
                                 {
                                     W.Cast(wtarget);
@@ -299,7 +336,7 @@ namespace Zed_Sharpy.Plugins
                                         var target = MinionManager.GetMinions(E.Range).FirstOrDefault(x => x.isKillableAndValidTarget(E.GetDamage(x, 1), E.DamageType, E.Range));
                                         if (target != null)
                                         {
-                                            E.Cast(target, false, true);
+                                            E.Cast(target);
                                         }
                                     }
                                 }
@@ -324,6 +361,7 @@ namespace Zed_Sharpy.Plugins
 
                     case Orbwalking.OrbwalkingMode.Mixed:
                         {
+
                             var WEQMana = W.ManaCost + E.ManaCost + Q.ManaCost;
                             var HW = MenuProvider.Champion.Harass.getKeyBindValue("Use W Toggle").Active;
                             if (HW)
@@ -346,10 +384,13 @@ namespace Zed_Sharpy.Plugins
                                 {
                                     if (wShadow == wCheck.Second)
                                     {
-                                        var target = TargetSelector.GetTarget(W.Range + E.Range, E.DamageType);
+                                        var target = TargetSelector.GetTarget(Player.Distance(checkWshadow.Position) + E.Range, E.DamageType);
                                         if (target != null)
                                         {
-                                            E.Cast();
+                                            if (target.Distance(Player.Position) <= E.Range || target.Distance(checkWshadow.Position) <= E.Range)
+                                            {
+                                                E.Cast();
+                                            }
                                         }
                                     }
                                     else
@@ -373,10 +414,18 @@ namespace Zed_Sharpy.Plugins
                                 {
                                     if (wShadow == wCheck.Second)
                                     {
-                                        var target = TargetSelector.GetTarget(W.Range + Q.Range, Q.DamageType);
+                                        var target = TargetSelector.GetTarget(Player.Position.Distance(checkWshadow.Position) + Q.Range, Q.DamageType);
                                         if (target != null)
                                         {
-                                            Q.Cast(target, false, true);
+                                            if (target.Position.Distance(checkWshadow.Position) <= Q.Range)
+                                            {
+                                                Q.UpdateSourcePosition(checkWshadow.Position, checkWshadow.Position);
+                                                Q.Cast(target, false, true);
+                                            }
+                                            if (target.Position.Distance(Player.Position) <= Q.Range)
+                                            {
+                                                Q.Cast(target, false, true);
+                                            }
                                         }
                                     }
                                     else                                    
@@ -447,11 +496,31 @@ namespace Zed_Sharpy.Plugins
                                 {
                                     if (Q.isReadyPerfectly())
                                     {
-                                        var qMob = MinionManager.GetMinions
-                                            (Q.Range, MinionTypes.All, MinionTeam.Neutral, MinionOrderTypes.MaxHealth).FirstOrDefault(x => x.IsValidTarget(Q.Range));
-                                        if (qMob != null)
+                                        if (wShadow == wCheck.Second)
                                         {
-                                            Q.Cast(qMob);
+                                            var qMob = MinionManager.GetMinions
+                                                (Q.Range + Player.Position.Distance(checkWshadow.Position), MinionTypes.All, MinionTeam.Neutral, MinionOrderTypes.MaxHealth).FirstOrDefault(x => x.IsValidTarget(Q.Range + Player.Distance(checkWshadow.Position)));
+                                            if (qMob != null)
+                                            {
+                                                if (qMob.Position.Distance(checkWshadow.Position) <= Q.Range)
+                                                {
+                                                    Q.UpdateSourcePosition(checkWshadow.Position, checkWshadow.Position);
+                                                    Q.Cast(qMob);
+                                                }
+                                                if (qMob.Position.Distance(Player.Position) <= Q.Range)
+                                                {
+                                                    Q.Cast(qMob);
+                                                }
+                                            }
+                                        }
+                                        else
+                                        {
+                                             var qMob = MinionManager.GetMinions
+                                                (Q.Range, MinionTypes.All, MinionTeam.Neutral, MinionOrderTypes.MaxHealth).FirstOrDefault(x => x.IsValidTarget(Q.Range));
+                                            if (qMob != null)
+                                            {
+                                                Q.Cast(qMob);
+                                            }
                                         }
                                     }
                                 }
@@ -467,10 +536,13 @@ namespace Zed_Sharpy.Plugins
                                         if (wShadow == wCheck.Second)
                                         {
                                             var eMob = MinionManager.GetMinions
-                                                (E.Range + W.Range, MinionTypes.All, MinionTeam.Neutral, MinionOrderTypes.MaxHealth).FirstOrDefault(x => x.IsValidTarget(E.Range + W.Range));
+                                                (E.Range + Player.Distance(checkWshadow.Position), MinionTypes.All, MinionTeam.Neutral, MinionOrderTypes.MaxHealth).FirstOrDefault(x => x.IsValidTarget(Player.Distance(checkWshadow.Position) + E.Range));
                                             if (eMob != null)
                                             {
-                                                E.Cast();
+                                                if (eMob.Distance(Player.Position) <= E.Range || eMob.Distance(checkWshadow.Position) <= E.Range)
+                                                {
+                                                    E.Cast();
+                                                }
                                             }
                                         }
                                         else
@@ -501,15 +573,15 @@ namespace Zed_Sharpy.Plugins
                                         var target = TargetSelector.GetTarget(R.Range, TargetSelector.DamageType.Physical);
                                         if (target != null && !target.IsZombie)
                                         {
-                                            R.Cast(target);
+                                            R.CastOnUnit(target);
                                         }
                                     }
                                     else
                                     {
                                         var target = TargetSelector.GetSelectedTarget();
-                                        if (target != null && !target.IsZombie)
+                                        if (target != null && !target.IsZombie && target.Distance(Player.Position) <= R.Range)
                                         {
-                                            R.Cast(target);
+                                            R.CastOnUnit(target);
                                         }
                                     }
                                 }
@@ -522,64 +594,48 @@ namespace Zed_Sharpy.Plugins
                                 {
                                     if (rShadow == rCheck.Second)
                                     {
-                                        if (wShadow == wCheck.Second)
+                                        var target = TargetSelector.GetTarget(E.Range + Player.Position.Distance(checkRshadow.Position), E.DamageType);
+                                        if (target != null)
                                         {
-                                            var target = TargetSelector.GetTarget(E.Range + W.Range, E.DamageType);
-                                            if (target != null)
+                                            if (target.Position.Distance(checkRshadow.Position) <= E.Range || target.Position.Distance(Player.Position) <= E.Range)
                                             {
                                                 E.Cast();
-                                            }
-                                        }
-                                        else
-                                        {
-                                            if (rShadow == rCheck.Second)
-                                            {
-                                                var target = TargetSelector.GetTarget(E.Range + R.Range, E.DamageType);
-                                                if (target != null)
-                                                {
-                                                    E.Cast();
-                                                }
-                                            }
-                                            else
-                                            {
-                                                var target = TargetSelector.GetTarget(E.Range, E.DamageType);
-                                                if (target != null)
-                                                {
-                                                    E.Cast();
-                                                }
                                             }
                                         }
                                     }
-                                    else if (!CR || rShadow == rCheck.Cooltime)
+                                    else
                                     {
-                                        if (wShadow == wCheck.Second)
+                                        if (wShadow == wCheck.First || wShadow == wCheck.Cooltime)
                                         {
-                                            var target = TargetSelector.GetTarget(E.Range + W.Range, E.DamageType);
+                                            var target = TargetSelector.GetTarget(E.Range, E.DamageType);
                                             if (target != null)
                                             {
                                                 E.Cast();
                                             }
                                         }
-                                        else
+                                    }
+                                    if (wShadow == wCheck.Second)
+                                    {
+                                        var target = TargetSelector.GetTarget(E.Range + Player.Position.Distance(checkWshadow.Position), E.DamageType);
+                                        if (target != null)
                                         {
-                                            if (rShadow == rCheck.Second)
+                                            if (target.Position.Distance(checkWshadow.Position) <= E.Range || target.Position.Distance(Player.Position) <= E.Range)
                                             {
-                                                var target = TargetSelector.GetTarget(E.Range + R.Range, E.DamageType);
-                                                if (target != null)
-                                                {
-                                                    E.Cast();
-                                                }
-                                            }
-                                            else
-                                            {
-                                                var target = TargetSelector.GetTarget(E.Range, E.DamageType);
-                                                if (target != null)
-                                                {
-                                                    E.Cast();
-                                                }
+                                                E.Cast();
                                             }
                                         }
-                                    }                                    
+                                    }
+                                    else
+                                    {
+                                        if (rShadow == rCheck.First || rShadow == rCheck.Cooltime)
+                                        {
+                                            var target = TargetSelector.GetTarget(E.Range, E.DamageType);
+                                            if (target != null)
+                                            {
+                                                E.Cast();
+                                            }
+                                        }
+                                    }
                                 }
                             }
 
@@ -590,62 +646,42 @@ namespace Zed_Sharpy.Plugins
                                 {
                                     if (rShadow == rCheck.Second)
                                     {
-                                        if (wShadow == wCheck.Second)
+                                        var target = TargetSelector.GetTarget(Player.Position.Distance(checkRshadow.Position) + Q.Range, Q.DamageType);
+                                        if (target != null)
                                         {
-                                            var target = TargetSelector.GetTarget(Q.Range + W.Range, Q.DamageType);
-                                            if (target != null)
+                                            if (target.Position.Distance(checkRshadow.Position) <= Q.Range)
                                             {
+                                                Q.UpdateSourcePosition(checkWshadow.Position, checkRshadow.Position);
                                                 Q.Cast(target, false, true);
                                             }
-                                        }
-                                        else
-                                        {
-                                            if (rShadow == rCheck.Second)
+                                            if (target.Position.Distance(Player.Position) <= Q.Range)
                                             {
-                                                var target = TargetSelector.GetTarget(Q.Range + R.Range, Q.DamageType);
-                                                if (target != null)
-                                                {
-                                                    Q.Cast(target, false, true);
-                                                }
-                                            }
-                                            else
-                                            {
-                                                var target = TargetSelector.GetTarget(Q.Range, Q.DamageType);
-                                                if (target != null)
-                                                {
-                                                    Q.Cast(target, false, true);
-                                                }
+                                                Q.Cast(target, false, true);
                                             }
                                         }
                                     }
-                                    else if (!CR || rShadow == rCheck.Cooltime)
+                                    if (wShadow == wCheck.Second)
                                     {
-                                        if (wShadow == wCheck.Second)
+                                        var target = TargetSelector.GetTarget(Player.Position.Distance(checkWshadow.Position) + Q.Range, Q.DamageType);
+                                        if (target != null)
                                         {
-                                            var target = TargetSelector.GetTarget(Q.Range + W.Range, Q.DamageType);
-                                            if (target != null)
+                                            if (target.Position.Distance(checkWshadow.Position) <= Q.Range)
+                                            {
+                                                Q.UpdateSourcePosition(checkWshadow.Position, checkWshadow.Position);
+                                                Q.Cast(target, false, true);
+                                            }
+                                            if (target.Position.Distance(Player.Position) <= Q.Range)
                                             {
                                                 Q.Cast(target, false, true);
                                             }
                                         }
-                                        else
+                                    }
+                                    if (wShadow == wCheck.Cooltime && rShadow == rCheck.Cooltime || wShadow == wCheck.First && rShadow == rCheck.Cooltime || !CR)
+                                    {
+                                        var target = TargetSelector.GetTarget(Q.Range, Q.DamageType);
+                                        if (target != null)
                                         {
-                                            if (rShadow == rCheck.Second)
-                                            {
-                                                var target = TargetSelector.GetTarget(Q.Range + R.Range, Q.DamageType);
-                                                if (target != null)
-                                                {
-                                                    Q.Cast(target, false, true);
-                                                }
-                                            }
-                                            else
-                                            {
-                                                var target = TargetSelector.GetTarget(Q.Range, Q.DamageType);
-                                                if (target != null)
-                                                {
-                                                    Q.Cast(target, false, true);
-                                                }
-                                            }
+                                            Q.Cast(target, false, true);
                                         }
                                     }
                                 }
@@ -691,6 +727,12 @@ namespace Zed_Sharpy.Plugins
             if (R.isReadyPerfectly() && drawR.Active && rShadow == rCheck.First)
             {
                 Render.Circle.DrawCircle(Player.Position, R.Range, drawR.Color,3);
+            }
+
+            var drawQW = MenuProvider.Champion.Drawings.getCircleValue("Draw QW Range");
+            if (Q.isReadyPerfectly() && W.isReadyPerfectly() && wShadow == wCheck.First && drawQW.Active)
+            {
+                Render.Circle.DrawCircle(Player.Position, Q.Range + W.Range, drawQW.Color, 3);
             }
         }
 
