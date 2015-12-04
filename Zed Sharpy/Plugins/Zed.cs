@@ -97,7 +97,7 @@ namespace Zed_Sharpy.Plugins
             R = new Spell(SpellSlot.R, 650f,TargetSelector.DamageType.Physical);
 
             Q.SetSkillshot(.5f, 150f, float.MaxValue, false, SkillshotType.SkillshotLine);
-            W.SetSkillshot(0f, 0f, float.MaxValue, false, SkillshotType.SkillshotCircle);
+            W.SetSkillshot(0f, 0f, 1750f, false, SkillshotType.SkillshotCircle);
             E.SetSkillshot(0f, 0f, float.MaxValue, false, SkillshotType.SkillshotCircle);
 
             MenuProvider.Champion.Combo.addUseQ();
@@ -372,7 +372,7 @@ namespace Zed_Sharpy.Plugins
                                     var target = TargetSelector.GetTarget(W.Range, TargetSelector.DamageType.Physical);
                                     if (target != null)
                                     {
-                                        W.Cast(target, false, true);
+                                        W.Cast(target);
                                     }
                                 }
                             }
@@ -420,11 +420,11 @@ namespace Zed_Sharpy.Plugins
                                             if (target.Position.Distance(checkWshadow.Position) <= Q.Range)
                                             {
                                                 Q.UpdateSourcePosition(checkWshadow.Position, checkWshadow.Position);
-                                                Q.Cast(target, false, true);
+                                                Q.Cast(target);
                                             }
                                             if (target.Position.Distance(Player.Position) <= Q.Range)
                                             {
-                                                Q.Cast(target, false, true);
+                                                Q.Cast(target);
                                             }
                                         }
                                     }
@@ -435,7 +435,7 @@ namespace Zed_Sharpy.Plugins
                                         {
                                             if (target != null)
                                             {
-                                                Q.Cast(target, false, true);
+                                                Q.Cast(target);
                                             }
                                         }                                        
                                     }
@@ -652,11 +652,11 @@ namespace Zed_Sharpy.Plugins
                                             if (target.Position.Distance(checkRshadow.Position) <= Q.Range)
                                             {
                                                 Q.UpdateSourcePosition(checkWshadow.Position, checkRshadow.Position);
-                                                Q.Cast(target, false, true);
+                                                Q.Cast(target);
                                             }
                                             if (target.Position.Distance(Player.Position) <= Q.Range)
                                             {
-                                                Q.Cast(target, false, true);
+                                                Q.Cast(target);
                                             }
                                         }
                                     }
@@ -668,11 +668,11 @@ namespace Zed_Sharpy.Plugins
                                             if (target.Position.Distance(checkWshadow.Position) <= Q.Range)
                                             {
                                                 Q.UpdateSourcePosition(checkWshadow.Position, checkWshadow.Position);
-                                                Q.Cast(target, false, true);
+                                                Q.Cast(target);
                                             }
                                             if (target.Position.Distance(Player.Position) <= Q.Range)
                                             {
-                                                Q.Cast(target, false, true);
+                                                Q.Cast(target);
                                             }
                                         }
                                     }
@@ -681,7 +681,7 @@ namespace Zed_Sharpy.Plugins
                                         var target = TargetSelector.GetTarget(Q.Range, Q.DamageType);
                                         if (target != null)
                                         {
-                                            Q.Cast(target, false, true);
+                                            Q.Cast(target);
                                         }
                                     }
                                 }
