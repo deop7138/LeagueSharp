@@ -53,10 +53,9 @@ namespace Zed_Sharpy
         /// </summary>
         public enum OrbwalkingMode
         {
-            LineCombo,
-
             Flee,
 
+            LineCombo,
             /// <summary>
             /// The orbalker will only last hit minions.
             /// </summary>
@@ -98,7 +97,7 @@ namespace Zed_Sharpy
             "monkeykingdoubleattack", "mordekaisermaceofspades", "nasusq", "nautiluspiercinggaze", "netherblade",
             "gangplankqwrapper", "poppydevastatingblow", "powerfist", "renektonpreexecute", "rengarq", "shyvanadoubleattack",
             "sivirw", "takedown", "talonnoxiandiplomacy", "trundletrollsmash", "vaynetumble", "vie", "volibearq",
-            "xenzhaocombotarget", "yorickspectral", "reksaiq", "itemtitanichydracleave", "masochism","ilaoiw"
+            "xenzhaocombotarget", "yorickspectral", "reksaiq", "itemtitanichydracleave", "masochism", "illaoiw"
         };
 
 
@@ -208,6 +207,8 @@ namespace Zed_Sharpy
         /// The random
         /// </summary>
         private static readonly Random _random = new Random(DateTime.Now.Millisecond);
+
+        private static int _autoattackCounter = 0;
 
         /// <summary>
         /// Initializes static members of the <see cref="Orbwalking"/> class.
@@ -422,7 +423,8 @@ namespace Zed_Sharpy
         {
             if (Player.ChampionName == "Graves" && Attack)
             {
-                if (Utils.GameTimeTickCount + Game.Ping / 2 + 25 >= LastAATick + 1500 && Player.HasBuff("GravesBasicAttackAmmo1"))
+                var attackDelay = 1.0740296828d * 1000 * Player.AttackDelay - 716.2381256175d;
+                if (Utils.GameTimeTickCount + Game.Ping / 2 + 25 >= LastAATick + attackDelay && Player.HasBuff("GravesBasicAttackAmmo1"))
                 {
                     return true;
                 }
@@ -438,14 +440,14 @@ namespace Zed_Sharpy
         /// </summary>
         /// <param name="extraWindup">The extra windup.</param>
         /// <returns><c>true</c> if this instance can move the specified extra windup; otherwise, <c>false</c>.</returns>
-        public static bool CanMove(float extraWindup)
+        public static bool CanMove(float extraWindup, bool disableMissileCheck = false)
         {
             if (!Move)
             {
                 return false;
             }
 
-            if (_missileLaunched && Orbwalker.MissileCheck)
+            if (_missileLaunched && Orbwalker.MissileCheck && !disableMissileCheck)
             {
                 return true;
             }
@@ -610,6 +612,11 @@ namespace Zed_Sharpy
 
                 if (CanMove(extraWindup))
                 {
+                    if (Orbwalker.LimitAttackSpeed && (Player.AttackDelay < 1 / 2.6f) && (_autoattackCounter % 3 != 0 && !CanMove(500, true)))
+                    {
+                        return;
+                    }
+
                     MoveTo(position, holdAreaRadius, false, useFixedDistance, randomizeMinDistance);
                 }
             }
@@ -705,6 +712,7 @@ namespace Zed_Sharpy
                     LastAATick = Utils.GameTimeTickCount - Game.Ping / 2;
                     _missileLaunched = false;
                     LastMoveCommandT = 0;
+                    _autoattackCounter++;
 
                     if (Spell.Target is Obj_AI_Base)
                     {
@@ -843,6 +851,7 @@ namespace Zed_Sharpy
                 misc.AddItem(new MenuItem("AttackPetsnTraps", "Auto attack pets & traps").SetShared().SetValue(true));
                 misc.AddItem(new MenuItem("AttackBarrel", "Auto attack gangplank barrel").SetShared().SetValue(true));
                 misc.AddItem(new MenuItem("Smallminionsprio", "Jungle clear small first").SetShared().SetValue(false));
+                misc.AddItem(new MenuItem("LimitAttackSpeed", "Don't kite if Attack Speed > 2.5").SetShared().SetValue(false));
                 misc.AddItem(new MenuItem("FocusMinionsOverTurrets", "Focus minions over objectives").SetShared().SetValue(new KeyBind('M', KeyBindType.Toggle)));
 
                 _config.AddSubMenu(misc);
@@ -881,61 +890,12 @@ namespace Zed_Sharpy
                 _config.Item("StillCombo").ValueChanged +=
                     (sender, args) => { Move = !args.GetNewValue<KeyBind>().Active; };
 
-                var menuAttackSpeed = new Menu("Attack Speed Limiter", "AttackSpeedLimiter");
-                {
-                    menuAttackSpeed.AddItem(
-                        new MenuItem("AttackSpeedLimiter.Enabled", "Enabled").SetShared().SetValue(false))
-                        .Permashow(true, "Orbwalker | Attack Speed Limiter", SharpDX.Color.Aqua);
-                    menuAttackSpeed.AddItem(
-                        new MenuItem("AttackSpeedLimiter.MaxAttackSpeed", "Limit Attack Speed [Recommend: 2150]:")
-                            .SetShared().SetValue(new Slider(2150, 650, 3500)));
-                    menuAttackSpeed.AddItem(
-                        new MenuItem("AttackSpeedLimiter.LimitWhen", "Limit:").SetShared()
-                            .SetValue(new StringList(new[] { "If I'm moving / kite mode", "Everytime" }, 0)));
-                    _config.AddSubMenu(menuAttackSpeed);
-                }
 
                 Player = ObjectManager.Player;
                 Game.OnUpdate += GameOnOnGameUpdate;
                 Drawing.OnDraw += DrawingOnOnDraw;
                 Instances.Add(this);
             }
-
-            /// <summary>
-            /// Returning Attack Speed Delay
-            /// </summary>
-            public static float AttackSpeedDelay
-            {
-                get
-                {
-                    if (!_config.Item("AttackSpeedLimiter.Enabled").GetValue<bool>())
-                    {
-                        return ObjectManager.Player.AttackDelay;
-                    }
-
-                    var speed = (float)_config.Item("AttackSpeedLimiter.MaxAttackSpeed").GetValue<Slider>().Value;
-
-                    switch (_config.Item("AttackSpeedLimiter.LimitWhen").GetValue<StringList>().SelectedIndex)
-                    {
-                        case 0:
-                            {
-                                return ObjectManager.Player.Path.Count() != 0
-                                    ? ObjectManager.Player.AttackDelay > 1000 / speed
-                                        ? ObjectManager.Player.AttackDelay
-                                        : 1000 / speed
-                                    : ObjectManager.Player.AttackDelay;
-                            }
-                        case 1:
-                            {
-                                return ObjectManager.Player.AttackDelay > 1000 / speed
-                                    ? ObjectManager.Player.AttackDelay
-                                    : 1000 / speed;
-                            }
-                    }
-                    return ObjectManager.Player.AttackDelay;
-                }
-            }
-
 
             /// <summary>
             /// Determines if a target is in auto attack range.
@@ -963,6 +923,11 @@ namespace Zed_Sharpy
             public static bool MissileCheck
             {
                 get { return _config.Item("MissileCheck").GetValue<bool>(); }
+            }
+
+            public static bool LimitAttackSpeed
+            {
+                get { return _config.Item("LimitAttackSpeed").GetValue<bool>(); }
             }
 
             /// <summary>
@@ -1088,7 +1053,7 @@ namespace Zed_Sharpy
                                 minion.IsValidTarget() && minion.Team != GameObjectTeam.Neutral &&
                                 InAutoAttackRange(minion) && MinionManager.IsMinion(minion, false) &&
                                 HealthPrediction.LaneClearHealthPrediction(
-                                    minion, (int)((AttackSpeedDelay * 1000) * LaneClearWaitTimeMod), FarmDelay) <=
+                                    minion, (int)((Player.AttackDelay * 1000) * LaneClearWaitTimeMod), FarmDelay) <=
                                 Player.GetAutoAttackDamage(minion));
             }
 
@@ -1224,7 +1189,7 @@ namespace Zed_Sharpy
                         if (_prevMinion.IsValidTarget() && InAutoAttackRange(_prevMinion))
                         {
                             var predHealth = HealthPrediction.LaneClearHealthPrediction(
-                                _prevMinion, (int)((AttackSpeedDelay * 1000) * LaneClearWaitTimeMod), FarmDelay);
+                                _prevMinion, (int)((Player.AttackDelay * 1000) * LaneClearWaitTimeMod), FarmDelay);
                             if (predHealth >= 2 * Player.GetAutoAttackDamage(_prevMinion) ||
                                 Math.Abs(predHealth - _prevMinion.Health) < float.Epsilon)
                             {
@@ -1240,7 +1205,7 @@ namespace Zed_Sharpy
                                           minion.CharData.BaseSkinName != "gangplankbarrel")
                                   let predHealth =
                                       HealthPrediction.LaneClearHealthPrediction(
-                                          minion, (int)((AttackSpeedDelay * 1000) * LaneClearWaitTimeMod), FarmDelay)
+                                          minion, (int)((Player.AttackDelay * 1000) * LaneClearWaitTimeMod), FarmDelay)
                                   where
                                       predHealth >= 2 * Player.GetAutoAttackDamage(minion) ||
                                       Math.Abs(predHealth - minion.Health) < float.Epsilon

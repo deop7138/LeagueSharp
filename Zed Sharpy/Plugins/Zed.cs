@@ -15,9 +15,9 @@ namespace Zed_Sharpy.Plugins
     public class Zed
     {
         private Obj_AI_Hero Player = ObjectManager.Player;
-        private Obj_AI_Minion Shadow;
         private Spell Q, W, E, R;
         private Vector3 rshadowpos;
+        private Obj_AI_Minion shadow;
         private Orbwalking.Orbwalker Orbwalker
         {
             get
@@ -135,21 +135,6 @@ namespace Zed_Sharpy.Plugins
             Spellbook.OnCastSpell += Spellbook_OnCastSpell;
             Game.OnUpdate += Game_OnUpdate;
             Orbwalking.BeforeAttack += Orbwalking_BeforeAttack;
-            Obj_AI_Minion.OnCreate += Obj_AI_Minion_OnCreate;
-        }
-        private void Obj_AI_Minion_OnCreate(GameObject sender, EventArgs args)
-        {
-            var i = sender as Obj_AI_Minion;
-            if (i != null)
-            {
-                if (i.Name.Equals("Shadow"))
-                {
-                    if (LastCastedSpell.LastCastPacketSent.Slot == SpellSlot.R)
-                    {
-                        rshadowpos = i.Position;
-                    }
-                }
-            }
         }
 
         private void Orbwalking_BeforeAttack(Orbwalking.BeforeAttackEventArgs args)
@@ -229,7 +214,7 @@ namespace Zed_Sharpy.Plugins
                             if (W.isReadyPerfectly() && wShadow == wCheck.First && rShadow == rCheck.Second)
                             {
                                 var rtarget = TargetSelector.GetTarget(W.Range, R.DamageType);
-                                var wtarget = rtarget.Position.Extend(Player.Position, -500);
+                                var wtarget = rtarget.Position.Extend(Player.Position, -650);
                                 if (rtarget != null)
                                 {
                                     W.Cast(wtarget);
@@ -382,12 +367,12 @@ namespace Zed_Sharpy.Plugins
                             {
                                 if (E.isReadyPerfectly())
                                 {
-                                    if (wShadow == wCheck.Second)
+                                    if (wShadow == wCheck.Second || wShadow == wCheck.Cooltime && checkWshadow != null)
                                     {
-                                        var target = TargetSelector.GetTarget(Player.Distance(checkWshadow.Position) + E.Range, E.DamageType);
+                                        var target = TargetSelector.GetTarget(Player.Position.Distance(checkWshadow.Position) + E.Range, E.DamageType);
                                         if (target != null)
                                         {
-                                            if (target.Distance(Player.Position) <= E.Range || target.Distance(checkWshadow.Position) <= E.Range)
+                                            if (checkWshadow.Position.Distance(target.Position) <= E.Range || Player.Position.Distance(target.Position) <= E.Range)
                                             {
                                                 E.Cast();
                                             }
@@ -412,7 +397,7 @@ namespace Zed_Sharpy.Plugins
                             {
                                 if (Q.isReadyPerfectly())
                                 {
-                                    if (wShadow == wCheck.Second)
+                                    if (wShadow == wCheck.Second || wShadow == wCheck.Cooltime && checkWshadow != null)
                                     {
                                         var target = TargetSelector.GetTarget(Player.Position.Distance(checkWshadow.Position) + Q.Range, Q.DamageType);
                                         if (target != null)
@@ -420,11 +405,15 @@ namespace Zed_Sharpy.Plugins
                                             if (target.Position.Distance(checkWshadow.Position) <= Q.Range)
                                             {
                                                 Q.UpdateSourcePosition(checkWshadow.Position, checkWshadow.Position);
-                                                Q.Cast(target);
+                                                Q.Cast(target, false, true);
                                             }
-                                            if (target.Position.Distance(Player.Position) <= Q.Range)
+                                            else
                                             {
-                                                Q.Cast(target);
+                                                if (target.Position.Distance(Player.Position) <= Q.Range)
+                                                {
+                                                    Q.UpdateSourcePosition(Player.Position, Player.Position);
+                                                    Q.Cast(target, false, true);
+                                                }
                                             }
                                         }
                                     }
@@ -496,31 +485,11 @@ namespace Zed_Sharpy.Plugins
                                 {
                                     if (Q.isReadyPerfectly())
                                     {
-                                        if (wShadow == wCheck.Second)
+                                        var qMob = MinionManager.GetMinions
+                                            (Q.Range, MinionTypes.All, MinionTeam.Neutral, MinionOrderTypes.MaxHealth).FirstOrDefault(x => x.IsValidTarget(Q.Range));
+                                        if (qMob != null)
                                         {
-                                            var qMob = MinionManager.GetMinions
-                                                (Q.Range + Player.Position.Distance(checkWshadow.Position), MinionTypes.All, MinionTeam.Neutral, MinionOrderTypes.MaxHealth).FirstOrDefault(x => x.IsValidTarget(Q.Range + Player.Distance(checkWshadow.Position)));
-                                            if (qMob != null)
-                                            {
-                                                if (qMob.Position.Distance(checkWshadow.Position) <= Q.Range)
-                                                {
-                                                    Q.UpdateSourcePosition(checkWshadow.Position, checkWshadow.Position);
-                                                    Q.Cast(qMob);
-                                                }
-                                                if (qMob.Position.Distance(Player.Position) <= Q.Range)
-                                                {
-                                                    Q.Cast(qMob);
-                                                }
-                                            }
-                                        }
-                                        else
-                                        {
-                                             var qMob = MinionManager.GetMinions
-                                                (Q.Range, MinionTypes.All, MinionTeam.Neutral, MinionOrderTypes.MaxHealth).FirstOrDefault(x => x.IsValidTarget(Q.Range));
-                                            if (qMob != null)
-                                            {
-                                                Q.Cast(qMob);
-                                            }
+                                            Q.Cast(qMob);
                                         }
                                     }
                                 }
@@ -592,48 +561,62 @@ namespace Zed_Sharpy.Plugins
                             {
                                 if (E.isReadyPerfectly())
                                 {
-                                    if (rShadow == rCheck.Second)
+                                    if (rShadow == rCheck.Second || rShadow == rCheck.Cooltime && checkRshadow != null)
                                     {
                                         var target = TargetSelector.GetTarget(E.Range + Player.Position.Distance(checkRshadow.Position), E.DamageType);
                                         if (target != null)
                                         {
-                                            if (target.Position.Distance(checkRshadow.Position) <= E.Range || target.Position.Distance(Player.Position) <= E.Range)
+                                            if (wShadow == wCheck.Second || wShadow == wCheck.Cooltime && checkWshadow != null)
                                             {
-                                                E.Cast();
+                                                if (checkRshadow.Position.Distance(target.Position) < checkWshadow.Position.Distance(target.Position))
+                                                {
+                                                    if (checkRshadow.Position.Distance(target.Position) <= E.Range || Player.Position.Distance(target.Position) <= E.Range)
+                                                    {
+                                                        E.Cast();
+                                                    }
+                                                }
+                                            }
+                                            else
+                                            {
+                                                if (checkRshadow.Position.Distance(target.Position) <= E.Range || Player.Position.Distance(target.Position) <= E.Range)
+                                                {
+                                                    E.Cast();
+                                                }
                                             }
                                         }
                                     }
-                                    else
-                                    {
-                                        if (wShadow == wCheck.First || wShadow == wCheck.Cooltime)
-                                        {
-                                            var target = TargetSelector.GetTarget(E.Range, E.DamageType);
-                                            if (target != null)
-                                            {
-                                                E.Cast();
-                                            }
-                                        }
-                                    }
-                                    if (wShadow == wCheck.Second)
+
+                                    if (wShadow == wCheck.Second || wShadow == wCheck.Cooltime && checkWshadow != null)
                                     {
                                         var target = TargetSelector.GetTarget(E.Range + Player.Position.Distance(checkWshadow.Position), E.DamageType);
                                         if (target != null)
                                         {
-                                            if (target.Position.Distance(checkWshadow.Position) <= E.Range || target.Position.Distance(Player.Position) <= E.Range)
+                                            if (rShadow == rCheck.Second || rShadow == rCheck.Cooltime && checkRshadow != null)
                                             {
-                                                E.Cast();
+                                                if (checkWshadow.Position.Distance(target.Position) < checkRshadow.Position.Distance(target.Position))
+                                                {
+                                                    if (checkWshadow.Position.Distance(target.Position) <= E.Range || Player.Position.Distance(target.Position) <= E.Range)
+                                                    {
+                                                        E.Cast();
+                                                    }
+                                                }
+                                            }
+                                            else
+                                            {
+                                                if (checkWshadow.Position.Distance(target.Position) <= E.Range || Player.Position.Distance(target.Position) <= E.Range)
+                                                {
+                                                    E.Cast();
+                                                }
                                             }
                                         }
                                     }
-                                    else
+
+                                    if (!CR || rShadow == rCheck.Cooltime)
                                     {
-                                        if (rShadow == rCheck.First || rShadow == rCheck.Cooltime)
+                                        var target = TargetSelector.GetTarget(E.Range, E.DamageType);
+                                        if (target != null)
                                         {
-                                            var target = TargetSelector.GetTarget(E.Range, E.DamageType);
-                                            if (target != null)
-                                            {
-                                                E.Cast();
-                                            }
+                                            E.Cast();
                                         }
                                     }
                                 }
@@ -644,44 +627,99 @@ namespace Zed_Sharpy.Plugins
                             {
                                 if (Q.isReadyPerfectly())
                                 {
-                                    if (rShadow == rCheck.Second)
+                                    if (rShadow == rCheck.Second || rShadow == rCheck.Cooltime && checkRshadow != null)
                                     {
+
                                         var target = TargetSelector.GetTarget(Player.Position.Distance(checkRshadow.Position) + Q.Range, Q.DamageType);
                                         if (target != null)
                                         {
-                                            if (target.Position.Distance(checkRshadow.Position) <= Q.Range)
+                                            if (wShadow == wCheck.Second || wShadow == wCheck.Cooltime && checkWshadow != null)
                                             {
-                                                Q.UpdateSourcePosition(checkWshadow.Position, checkRshadow.Position);
-                                                Q.Cast(target);
+                                                if (checkRshadow.Position.Distance(target.Position) < checkWshadow.Position.Distance(target.Position))
+                                                {
+                                                    if (checkRshadow.Position.Distance(target.Position) <= Q.Range)
+                                                    {
+                                                        Q.UpdateSourcePosition(checkRshadow.Position, checkRshadow.Position);
+                                                        Q.Cast(target, false, true);
+                                                    }
+                                                    else
+                                                    {
+                                                        if (Player.Position.Distance(target.Position) <= Q.Range)
+                                                        {
+                                                            Q.UpdateSourcePosition(Player.Position, Player.Position);
+                                                            Q.Cast(target, false, true);
+                                                        }
+                                                    }
+                                                }
                                             }
-                                            if (target.Position.Distance(Player.Position) <= Q.Range)
+                                            else
                                             {
-                                                Q.Cast(target);
+                                                if (checkRshadow.Position.Distance(target.Position) <= Q.Range)
+                                                {
+                                                    Q.UpdateSourcePosition(checkRshadow.Position, checkRshadow.Position);
+                                                    Q.Cast(target, false, true);
+                                                }
+                                                else
+                                                {
+                                                    if (Player.Position.Distance(target.Position) <= Q.Range)
+                                                    {
+                                                        Q.UpdateSourcePosition(Player.Position, Player.Position);
+                                                        Q.Cast(target, false, true);
+                                                    }
+                                                }
                                             }
                                         }
                                     }
-                                    if (wShadow == wCheck.Second)
+
+                                    if (wShadow == wCheck.Second || wShadow == wCheck.Cooltime && checkWshadow != null)
                                     {
                                         var target = TargetSelector.GetTarget(Player.Position.Distance(checkWshadow.Position) + Q.Range, Q.DamageType);
                                         if (target != null)
                                         {
-                                            if (target.Position.Distance(checkWshadow.Position) <= Q.Range)
+                                            if (rShadow == rCheck.Second || rShadow == rCheck.Cooltime && checkRshadow != null)
                                             {
-                                                Q.UpdateSourcePosition(checkWshadow.Position, checkWshadow.Position);
-                                                Q.Cast(target);
+                                                if (checkWshadow.Position.Distance(target.Position) < checkRshadow.Position.Distance(target.Position))
+                                                {
+                                                    if (checkWshadow.Position.Distance(target.Position) <= Q.Range)
+                                                    {
+                                                        Q.UpdateSourcePosition(checkWshadow.Position, checkWshadow.Position);
+                                                        Q.Cast(target, false, true);
+                                                    }
+                                                    else
+                                                    {
+                                                        if (Player.Position.Distance(target.Position) <= Q.Range)
+                                                        {
+                                                            Q.UpdateSourcePosition(Player.Position, Player.Position);
+                                                            Q.Cast(target, false, true);
+                                                        }
+                                                    }
+                                                }
                                             }
-                                            if (target.Position.Distance(Player.Position) <= Q.Range)
+                                            else
                                             {
-                                                Q.Cast(target);
+                                                if (checkWshadow.Position.Distance(target.Position) <= Q.Range)
+                                                {
+                                                    Q.UpdateSourcePosition(checkWshadow.Position, checkWshadow.Position);
+                                                    Q.Cast(target, false, true);
+                                                }
+                                                else
+                                                {
+                                                    if (Player.Position.Distance(target.Position) <= Q.Range)
+                                                    {
+                                                        Q.UpdateSourcePosition(Player.Position, Player.Position);
+                                                        Q.Cast(target, false, true);
+                                                    }
+                                                }
                                             }
                                         }
                                     }
-                                    if (wShadow == wCheck.Cooltime && rShadow == rCheck.Cooltime || wShadow == wCheck.First && rShadow == rCheck.Cooltime || !CR)
+
+                                    if (!CR || rShadow == rCheck.Cooltime)
                                     {
-                                        var target = TargetSelector.GetTarget(Q.Range, Q.DamageType);
-                                        if (target != null)
+                                        var qtarget = TargetSelector.GetTarget(Q.Range, Q.DamageType);
+                                        if (qtarget != null)
                                         {
-                                            Q.Cast(target);
+                                            Q.Cast(qtarget, false, true);
                                         }
                                     }
                                 }
@@ -693,8 +731,19 @@ namespace Zed_Sharpy.Plugins
                         break;
                 }
             }
+            RC();
         }
         
+        private void RC()
+        {
+            if (LastCastedSpell.LastCastPacketSent.Slot == SpellSlot.R)
+            {
+                shadow = ObjectManager.Get<Obj_AI_Minion>().FirstOrDefault(x => x.IsVisible && x.IsAlly && x.Name == "Shadow");
+
+                rshadowpos = shadow.Position;
+            }
+        }
+
         private void Spellbook_OnCastSpell(Spellbook sender, SpellbookCastSpellEventArgs args)
         {
             if (args.Slot == SpellSlot.W || args.Slot == SpellSlot.R)
