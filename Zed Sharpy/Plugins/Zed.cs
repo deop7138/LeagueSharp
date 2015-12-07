@@ -91,12 +91,12 @@ namespace Zed_Sharpy.Plugins
         {
             Game.PrintChat("<font Color = \"#00D8FF\">Zed Sharpy Loaded");
 
-            Q = new Spell(SpellSlot.Q, 900f, TargetSelector.DamageType.Physical) { MinHitChance = HitChance.High };
+            Q = new Spell(SpellSlot.Q, 900f, TargetSelector.DamageType.Physical) { MinHitChance = HitChance.VeryHigh };
             W = new Spell(SpellSlot.W, 700f) { MinHitChance = HitChance.High };
             E = new Spell(SpellSlot.E, 270f, TargetSelector.DamageType.Physical);
             R = new Spell(SpellSlot.R, 650f,TargetSelector.DamageType.Physical);
 
-            Q.SetSkillshot(.5f, 100f, float.MaxValue, false, SkillshotType.SkillshotLine);
+            Q.SetSkillshot(.5f, 80f, 1750f, false, SkillshotType.SkillshotLine);
             W.SetSkillshot(.25f, 0f, 1750f, false, SkillshotType.SkillshotCircle);
             E.SetSkillshot(0f, 0f, float.MaxValue, false, SkillshotType.SkillshotCircle);
 
