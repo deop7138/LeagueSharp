@@ -93,11 +93,11 @@ namespace Zed_Sharpy.Plugins
 
             Q = new Spell(SpellSlot.Q, 900f, TargetSelector.DamageType.Physical) { MinHitChance = HitChance.High };
             W = new Spell(SpellSlot.W, 700f) { MinHitChance = HitChance.High };
-            E = new Spell(SpellSlot.E, 270f, TargetSelector.DamageType.Physical) { MinHitChance = HitChance.High };
+            E = new Spell(SpellSlot.E, 270f, TargetSelector.DamageType.Physical);
             R = new Spell(SpellSlot.R, 650f,TargetSelector.DamageType.Physical);
 
-            Q.SetSkillshot(.5f, 150f, float.MaxValue, false, SkillshotType.SkillshotLine);
-            W.SetSkillshot(0f, 0f, 1750f, false, SkillshotType.SkillshotCircle);
+            Q.SetSkillshot(.5f, 100f, float.MaxValue, false, SkillshotType.SkillshotLine);
+            W.SetSkillshot(.25f, 0f, 1750f, false, SkillshotType.SkillshotCircle);
             E.SetSkillshot(0f, 0f, float.MaxValue, false, SkillshotType.SkillshotCircle);
 
             MenuProvider.Champion.Combo.addUseQ();
@@ -402,10 +402,13 @@ namespace Zed_Sharpy.Plugins
                                         var target = TargetSelector.GetTarget(Player.Position.Distance(checkWshadow.Position) + Q.Range, Q.DamageType);
                                         if (target != null)
                                         {
-                                            if (target.Position.Distance(checkWshadow.Position) <= Q.Range)
+                                            if (checkWshadow.Position.Distance(target.Position) < Player.Position.Distance(target.Position))
                                             {
-                                                Q.UpdateSourcePosition(checkWshadow.Position, checkWshadow.Position);
-                                                Q.Cast(target, false, true);
+                                                if (target.Position.Distance(checkWshadow.Position) <= Q.Range)
+                                                {
+                                                    Q.UpdateSourcePosition(checkWshadow.Position, checkWshadow.Position);
+                                                    Q.Cast(target, false, true);
+                                                }
                                             }
                                             else
                                             {
@@ -435,17 +438,27 @@ namespace Zed_Sharpy.Plugins
 
                     case Orbwalking.OrbwalkingMode.LaneClear:
                         {
-                            var LQ = MenuProvider.Champion.Laneclear.UseQ;
-                            if (LQ)
+                            if (Player.Mana >= Q.ManaCost)
                             {
-                                if (Player.Mana >= Q.ManaCost)
+                                if (Q.isReadyPerfectly())
                                 {
-                                    if (Q.isReadyPerfectly())
+                                    var LQ = MenuProvider.Champion.Laneclear.UseQ;
+                                    if (LQ)
                                     {
                                         var qLoc = Q.GetLineFarmLocation(MinionManager.GetMinions(Q.Range));
                                         if (qLoc.MinionsHit >= 1)
                                         {
                                             Q.Cast(qLoc.Position);
+                                        }
+                                    }
+
+                                    var JQ = MenuProvider.Champion.Jungleclear.UseQ;
+                                    if (JQ)
+                                    {
+                                        var qMob = MinionManager.GetMinions(Q.Range, MinionTypes.All, MinionTeam.Neutral, MinionOrderTypes.MaxHealth).FirstOrDefault(x => x.IsValidTarget(Q.Range));
+                                        if (qMob != null)
+                                        {
+                                            Q.Cast(qMob);
                                         }
                                     }
                                 }
@@ -473,23 +486,6 @@ namespace Zed_Sharpy.Plugins
                                             {
                                                 E.Cast();
                                             }
-                                        }
-                                    }
-                                }
-                            }
-
-                            var JQ = MenuProvider.Champion.Jungleclear.UseQ;
-                            if (JQ)
-                            {
-                                if (Player.Mana >= Q.ManaCost)
-                                {
-                                    if (Q.isReadyPerfectly())
-                                    {
-                                        var qMob = MinionManager.GetMinions
-                                            (Q.Range, MinionTypes.All, MinionTeam.Neutral, MinionOrderTypes.MaxHealth).FirstOrDefault(x => x.IsValidTarget(Q.Range));
-                                        if (qMob != null)
-                                        {
-                                            Q.Cast(qMob);
                                         }
                                     }
                                 }
@@ -637,10 +633,13 @@ namespace Zed_Sharpy.Plugins
                                             {
                                                 if (checkRshadow.Position.Distance(target.Position) < checkWshadow.Position.Distance(target.Position))
                                                 {
-                                                    if (checkRshadow.Position.Distance(target.Position) <= Q.Range)
+                                                    if (checkRshadow.Position.Distance(target.Position) < Player.Position.Distance(target.Position))
                                                     {
-                                                        Q.UpdateSourcePosition(checkRshadow.Position, checkRshadow.Position);
-                                                        Q.Cast(target, false, true);
+                                                        if (checkRshadow.Position.Distance(target.Position) <= Q.Range)
+                                                        {
+                                                            Q.UpdateSourcePosition(checkRshadow.Position, checkRshadow.Position);
+                                                            Q.Cast(target, false, true);
+                                                        }
                                                     }
                                                     else
                                                     {
@@ -654,10 +653,13 @@ namespace Zed_Sharpy.Plugins
                                             }
                                             else
                                             {
-                                                if (checkRshadow.Position.Distance(target.Position) <= Q.Range)
+                                                if (checkRshadow.Position.Distance(target.Position) < Player.Position.Distance(target.Position))
                                                 {
-                                                    Q.UpdateSourcePosition(checkRshadow.Position, checkRshadow.Position);
-                                                    Q.Cast(target, false, true);
+                                                    if (checkRshadow.Position.Distance(target.Position) <= Q.Range)
+                                                    {
+                                                        Q.UpdateSourcePosition(checkRshadow.Position, checkRshadow.Position);
+                                                        Q.Cast(target, false, true);
+                                                    }
                                                 }
                                                 else
                                                 {
@@ -680,10 +682,13 @@ namespace Zed_Sharpy.Plugins
                                             {
                                                 if (checkWshadow.Position.Distance(target.Position) < checkRshadow.Position.Distance(target.Position))
                                                 {
-                                                    if (checkWshadow.Position.Distance(target.Position) <= Q.Range)
+                                                    if (checkWshadow.Position.Distance(target.Position) < Player.Position.Distance(target.Position))
                                                     {
-                                                        Q.UpdateSourcePosition(checkWshadow.Position, checkWshadow.Position);
-                                                        Q.Cast(target, false, true);
+                                                        if (checkWshadow.Position.Distance(target.Position) <= Q.Range)
+                                                        {
+                                                            Q.UpdateSourcePosition(checkWshadow.Position, checkWshadow.Position);
+                                                            Q.Cast(target, false, true);
+                                                        }
                                                     }
                                                     else
                                                     {
@@ -697,10 +702,13 @@ namespace Zed_Sharpy.Plugins
                                             }
                                             else
                                             {
-                                                if (checkWshadow.Position.Distance(target.Position) <= Q.Range)
+                                                if (checkWshadow.Position.Distance(target.Position) < Player.Position.Distance(target.Position))
                                                 {
-                                                    Q.UpdateSourcePosition(checkWshadow.Position, checkWshadow.Position);
-                                                    Q.Cast(target, false, true);
+                                                    if (checkWshadow.Position.Distance(target.Position) <= Q.Range)
+                                                    {
+                                                        Q.UpdateSourcePosition(checkWshadow.Position, checkWshadow.Position);
+                                                        Q.Cast(target, false, true);
+                                                    }
                                                 }
                                                 else
                                                 {
